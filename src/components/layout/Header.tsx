@@ -33,11 +33,17 @@ export default function Header() {
             </a>
           ))}
           <Link
-            href="/signup"
+            href="/login"
+            className="text-sm text-muted hover:text-foreground transition-colors"
+          >
+            Log in
+          </Link>
+          <a
+            href="#pricing"
             className="text-sm font-semibold bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
           >
             Get Started
-          </Link>
+          </a>
         </nav>
 
         <button
@@ -68,11 +74,19 @@ export default function Header() {
             </a>
           ))}
           <Link
-            href="/signup"
+            href="/login"
+            className="block text-sm text-muted hover:text-foreground"
+            onClick={() => setMenuOpen(false)}
+          >
+            Log in
+          </Link>
+          <a
+            href="#pricing"
             className="block text-sm font-semibold bg-primary text-white px-4 py-2 rounded-lg text-center"
+            onClick={() => setMenuOpen(false)}
           >
             Get Started
-          </Link>
+          </a>
         </div>
       )}
     </header>

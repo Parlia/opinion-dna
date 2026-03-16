@@ -52,12 +52,19 @@ export default function Features() {
         {features.map((feature, i) => (
           <AnimateIn key={feature.dimension} delay={i * 100}>
             <div
-              className="bg-white rounded-xl p-8 shadow-sm border border-border hover:shadow-md transition-shadow relative overflow-hidden"
+              className="bg-white rounded-xl p-8 shadow-sm border border-border relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
             >
               {/* Colored top accent */}
               <div
                 className="absolute top-0 left-0 right-0 h-1"
                 style={{ backgroundColor: feature.color }}
+              />
+              {/* Subtle color fade on right edge */}
+              <div
+                className="absolute top-0 right-0 bottom-0 w-1/3 pointer-events-none"
+                style={{
+                  background: `linear-gradient(to right, transparent, ${feature.color}12)`,
+                }}
               />
               <div className="flex items-center gap-3 mb-4">
                 <div
