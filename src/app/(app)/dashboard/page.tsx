@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -15,6 +15,22 @@ interface DashboardState {
 }
 
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-[var(--beige-dark)] rounded w-48" />
+          <div className="h-4 bg-[var(--beige-dark)] rounded w-64" />
+          <div className="h-40 bg-[var(--beige-dark)] rounded-2xl mt-8" />
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
   const searchParams = useSearchParams();
   const [state, setState] = useState<DashboardState>({
     loading: true,
