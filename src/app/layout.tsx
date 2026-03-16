@@ -86,6 +86,29 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#F5F0E8" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
+        {/* Safe: JSON-LD data is from hardcoded constants in this file, not user input */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Opinion DNA",
+              url: "https://opiniondna.com",
+              description:
+                "The most complete map of your mind. 48 dimensions across personality, values, and meta-thinking.",
+              potentialAction: {
+                "@type": "SearchAction",
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate:
+                    "https://opiniondna.com/tests?q={search_term_string}",
+                },
+                "query-input": "required name=search_term_string",
+              },
+            }),
+          }}
+        />
       </head>
       <body className={`${fraunces.variable} ${dmSans.variable} antialiased`}>
         {children}

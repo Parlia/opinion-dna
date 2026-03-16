@@ -43,22 +43,27 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="font-semibold text-white mb-4">Extend</h4>
+            <h4 className="font-semibold text-white mb-4">Explore</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <span className="hover:text-white transition-colors cursor-pointer">
-                  Team Workshops
-                </span>
+                <Link href="/vs" className="hover:text-white transition-colors">
+                  Compare Tests
+                </Link>
               </li>
               <li>
-                <span className="hover:text-white transition-colors cursor-pointer">
-                  Coaching Sessions
-                </span>
+                <Link href="/alternatives" className="hover:text-white transition-colors">
+                  Alternatives
+                </Link>
               </li>
               <li>
-                <span className="hover:text-white transition-colors cursor-pointer">
-                  Academic Research
-                </span>
+                <Link href="/for" className="hover:text-white transition-colors">
+                  Use Cases
+                </Link>
+              </li>
+              <li>
+                <Link href="/tests" className="hover:text-white transition-colors">
+                  Assessments
+                </Link>
               </li>
             </ul>
           </div>

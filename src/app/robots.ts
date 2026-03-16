@@ -8,6 +8,13 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/",
         disallow: ["/api/", "/dashboard", "/quiz", "/scores", "/report", "/compare", "/settings"],
       },
+      // Explicitly allow AI search crawlers for citation in AI-generated answers
+      { userAgent: "GPTBot", allow: "/" },
+      { userAgent: "ChatGPT-User", allow: "/" },
+      { userAgent: "Google-Extended", allow: "/" },
+      { userAgent: "PerplexityBot", allow: "/" },
+      { userAgent: "ClaudeBot", allow: "/" },
+      { userAgent: "anthropic-ai", allow: "/" },
     ],
     sitemap: "https://opiniondna.com/sitemap.xml",
   };
