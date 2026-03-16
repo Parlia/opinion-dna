@@ -1,52 +1,62 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
-interface AnimateInProps {
-  children: ReactNode;
-  className?: string;
-  delay?: number;
-  as?: "div" | "section" | "span";
+// Single shared IntersectionObserver for all AnimateIn instances (instead of 36 separate ones)
+let sharedObserver: IntersectionObserver | null = null;
+const callbacks = new WeakMap<Element, () => void>();
+
+function getObserver() {
+  if (!sharedObserver) {
+    sharedObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const cb = callbacks.get(entry.target);
+            if (cb) cb();
+            sharedObserver!.unobserve(entry.target);
+            callbacks.delete(entry.target);
+          }
+        }
+      },
+      { threshold: 0.1, rootMargin: "0px 0px -40px 0px" }
+    );
+  }
+  return sharedObserver;
 }
 
 export default function AnimateIn({
   children,
   className = "",
   delay = 0,
-  as: Tag = "div",
-}: AnimateInProps) {
+}: {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.unobserve(entry.target);
-        }
-      },
-      { threshold: 0.1, rootMargin: "0px 0px -40px 0px" }
-    );
+    // Use DOM class toggle instead of React state — zero re-renders
+    callbacks.set(el, () => el.classList.add("animate-in-visible"));
+    getObserver().observe(el);
 
-    observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      getObserver().unobserve(el);
+      callbacks.delete(el);
+    };
   }, []);
 
   return (
-    <Tag
-      ref={ref as React.RefObject<HTMLDivElement>}
-      className={className}
-      style={{
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "translateY(0)" : "translateY(20px)",
-        transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
-      }}
+    <div
+      ref={ref}
+      className={`animate-in ${className}`}
+      style={delay ? { transitionDelay: `${delay}ms` } : undefined}
     >
       {children}
-    </Tag>
+    </div>
   );
 }

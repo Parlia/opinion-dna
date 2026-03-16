@@ -5,12 +5,13 @@ export default function CTA() {
     <section className="relative px-6 py-24 overflow-hidden">
       {/* Animated gradient — fades from background at top to color at bottom */}
       <div
-        className="absolute inset-0 opacity-30 blur-xl"
+        className="absolute inset-0 opacity-30"
         style={{
           background:
             "linear-gradient(115deg, #ec4899, #a855f7, #6366f1, #22d3ee, #84cc16, #f97316, #ec4899, #a855f7, #6366f1)",
           backgroundSize: "300% 100%",
           animation: "gradient-shift 25s ease infinite",
+          willChange: "background-position",
         }}
       />
       <div
