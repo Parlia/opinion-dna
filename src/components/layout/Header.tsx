@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 const navLinks = [
   { label: "What it is", href: "#what-it-is" },
@@ -17,8 +18,8 @@ export default function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="text-lg tracking-tight text-black">
-          Opinion DNA<span className="text-primary">&reg;</span>
+        <Link href="/">
+          <Image src="/logo.png" alt="Opinion DNA" width={160} height={32} priority />
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
