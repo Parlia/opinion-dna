@@ -86,6 +86,7 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#F5F0E8" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Safe: JSON-LD data is from hardcoded constants in this file, not user input */}
         <script
           type="application/ld+json"
