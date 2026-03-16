@@ -1,5 +1,14 @@
 import AnimateIn from "@/components/ui/AnimateIn";
 
+const QUOTE_COLORS = [
+  "#8A00FF", // purple
+  "#00B4D8", // light blue
+  "#00C853", // bright green
+  "#EC4899", // pink
+  "#F97316", // orange
+  "#0EA5E9", // teal/sky blue
+];
+
 const featured = [
   {
     quote: "This is so beautiful. A window into my mind.",
@@ -54,11 +63,14 @@ export default function Testimonials() {
         <div className="grid md:grid-cols-2 gap-8 mb-8">
           {featured.map((t, i) => (
             <AnimateIn key={t.name} delay={i * 100}>
-              <div className="bg-background rounded-xl p-8 border border-border relative">
-                <span className="absolute top-4 left-6 text-5xl text-primary/15 font-serif leading-none select-none">
+              <div className="p-8 relative">
+                <span
+                  className="text-6xl font-serif leading-none select-none"
+                  style={{ color: QUOTE_COLORS[i] }}
+                >
                   &ldquo;
                 </span>
-                <p className="text-xl text-foreground leading-relaxed mb-5 italic relative z-10 pt-4">
+                <p className="text-xl text-foreground leading-relaxed mb-5 italic">
                   {t.quote}
                 </p>
                 <div className="text-sm">
@@ -74,9 +86,15 @@ export default function Testimonials() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {testimonials.map((t, i) => (
             <AnimateIn key={t.name} delay={200 + i * 80}>
-              <div className="bg-background rounded-xl p-6 border border-border h-full">
+              <div className="p-6 h-full">
+                <span
+                  className="text-4xl font-serif leading-none select-none"
+                  style={{ color: QUOTE_COLORS[i + 2] }}
+                >
+                  &ldquo;
+                </span>
                 <p className="text-foreground leading-relaxed mb-4 italic text-sm">
-                  &ldquo;{t.quote}&rdquo;
+                  {t.quote}
                 </p>
                 <div className="text-sm">
                   <span className="font-semibold text-black">{t.name}</span>

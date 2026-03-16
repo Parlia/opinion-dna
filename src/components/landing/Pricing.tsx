@@ -18,7 +18,26 @@ const product = {
 
 export default function Pricing() {
   return (
-    <section id="pricing" className="px-6 py-24 max-w-6xl mx-auto">
+    <section id="pricing" className="px-6 py-24 max-w-6xl mx-auto relative overflow-hidden">
+      {/* Animated gradient background — matching hero style */}
+      <div className="absolute inset-0 top-[12%] -z-10 opacity-30">
+        <div
+          className="absolute inset-0 animate-gradient-shift"
+          style={{
+            background:
+              "linear-gradient(115deg, #ec4899, #a855f7, #6366f1, #22d3ee, #84cc16, #f97316, #ec4899, #a855f7, #6366f1)",
+            backgroundSize: "300% 100%",
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, transparent 20%, var(--background) 70%)",
+          }}
+        />
+      </div>
+
       <AnimateIn>
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl text-black">
