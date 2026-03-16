@@ -7,7 +7,7 @@ const faqs = [
   {
     question: "How was the Opinion DNA developed?",
     answer:
-      "During 2020, we interviewed 60+ experts in personality, behavioural economics, evolutionary psychology, and cognition. Over three years of development with academic psychologists and behavioural scientists from Royal Holloway, Oxford, Cambridge, University of Pennsylvania, and NYU, we reviewed thousands of well-researched metrics to create the Opinion DNA.",
+      "During 2020, we interviewed 60+ experts in personality, behavioral economics, evolutionary psychology, and cognition. Over three years of development with academic psychologists and behavioral scientists from Royal Holloway, Oxford, Cambridge, University of Pennsylvania, and NYU, we reviewed thousands of well-researched metrics to create the Opinion DNA.",
   },
   {
     question: "How is Opinion DNA different from other personality tests?",
@@ -22,7 +22,7 @@ const faqs = [
   {
     question: "Could I use Opinion DNA with my romantic partner?",
     answer:
-      "Yes. Our Couples Report helps you understand each other's communication styles, approach to conflict, and shared values. You each take the individual assessment, then receive a personalised comparison report with practical tips for your relationship.",
+      "Yes. Our Couples Report helps you understand each other's communication styles, approach to conflict, and shared values. You each take the individual assessment, then receive a personalized comparison report with practical tips for your relationship.",
   },
   {
     question: "Could I use Opinion DNA with my co-founder?",

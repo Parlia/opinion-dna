@@ -124,7 +124,7 @@ export default function TermsOfServicePage() {
           </h2>
           <p>
             You retain ownership of the responses you provide during the
-            assessment. By using the Service, you grant us a licence to process
+            assessment. By using the Service, you grant us a license to process
             your responses to generate your results and reports. Our use of your
             personal data is governed by our{" "}
             <a href="/privacy" className="text-primary hover:underline">

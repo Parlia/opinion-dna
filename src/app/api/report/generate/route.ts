@@ -162,7 +162,7 @@ Your Opinion DNA is yours. It's the map to your mental territory. The more fluen
 
 ---
 
-*The Opinion DNA was designed in consultation with academic psychologists and behavioural scientists from the universities of Royal Holloway, Oxford, Cambridge, University of Pennsylvania, City University, and NYU.*
+*The Opinion DNA was designed in consultation with academic psychologists and behavioral scientists from the universities of Royal Holloway, Oxford, Cambridge, University of Pennsylvania, City University, and NYU.*
 
 *opiniondna.com*`;
 

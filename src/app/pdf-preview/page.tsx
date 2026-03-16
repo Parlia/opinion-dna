@@ -18,7 +18,7 @@ const SAMPLE_CONTENT = `# Your Opinion DNA Report
 
 ## How to Read This Report
 
-This report is a personalised analysis of your psychological profile across 48 dimensions of Personality, Values, and Meta-Thinking. Each section provides insight into how your scores interact and what they mean for different areas of your life.
+This report is a personalized analysis of your psychological profile across 48 dimensions of Personality, Values, and Meta-Thinking. Each section provides insight into how your scores interact and what they mean for different areas of your life.
 
 Scores range from 0-100. **VERY HIGH** means you score in the top quintile, **HIGH** in the second, **MEDIUM** in the middle, **LOW** in the fourth, and **VERY LOW** in the bottom quintile.
 
@@ -78,7 +78,7 @@ Your **MEDIUM** Intellectual Humility sits in a healthy range. You are willing t
 
 ## Part 6: Your 48 Elements Explained
 
-Each of your 48 scores is detailed below with personalised interpretation.
+Each of your 48 scores is detailed below with personalized interpretation.
 
 **Openness (65 — HIGH):** Your above-average Openness means you are naturally drawn to new ideas, creative expression, and unconventional perspectives.
 

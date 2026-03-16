@@ -6,7 +6,7 @@ const product = {
   description: "Individual psychographic assessment",
   features: [
     "48-element Opinion DNA profile",
-    "Personalised AI-generated report",
+    "Personalized AI-generated report",
     "Life & Happiness insight",
     "Relationships insight",
     "Career insight",

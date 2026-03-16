@@ -455,7 +455,7 @@ export function buildPdfHtml(content: string, scores: number[]): string {
   <div class="cover-logo">Opinion <span class="accent">DNA</span></div>
   <div class="cover-divider"></div>
   <h1 class="cover-title">Your Opinion DNA Report</h1>
-  <p class="cover-subtitle">A personalised analysis of your psychological profile across 48 dimensions of Personality, Values, and Meta-Thinking.</p>
+  <p class="cover-subtitle">A personalized analysis of your psychological profile across 48 dimensions of Personality, Values, and Meta-Thinking.</p>
   <div class="cover-dimensions">
     <div class="cover-dim">
       <span class="cover-dim-dot" style="background:#00C839;"></span>

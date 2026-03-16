@@ -78,11 +78,11 @@ export default function PrivacyPolicyPage() {
             How we use your data
           </h2>
           <ul className="list-disc pl-6 space-y-2">
-            <li>To deliver and personalise your assessment results and reports.</li>
+            <li>To deliver and personalize your assessment results and reports.</li>
             <li>To generate AI-powered insights based on your dimension scores.</li>
             <li>To process payments and manage your account.</li>
             <li>To send transactional emails (receipts, report delivery, account updates).</li>
-            <li>To improve and develop our product through anonymised, aggregated analytics.</li>
+            <li>To improve and develop our product through anonymized, aggregated analytics.</li>
             <li>To respond to support requests.</li>
           </ul>
         </section>
@@ -129,7 +129,7 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               <strong>Anthropic</strong> — AI-powered report generation (only
-              anonymised dimension scores are sent, never your email or name).
+              anonymized dimension scores are sent, never your email or name).
             </li>
             <li>
               <strong>Resend</strong> — transactional email delivery.

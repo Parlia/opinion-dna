@@ -3,8 +3,10 @@ import Footer from "@/components/layout/Footer";
 import Hero from "@/components/landing/Hero";
 import Features from "@/components/landing/Features";
 import HowItWorks from "@/components/landing/HowItWorks";
+import WhatYouGet from "@/components/landing/WhatYouGet";
 import Impact from "@/components/landing/Impact";
 import Credibility from "@/components/landing/Credibility";
+import Founders from "@/components/landing/Founders";
 import Testimonials from "@/components/landing/Testimonials";
 import Pricing from "@/components/landing/Pricing";
 import FAQ from "@/components/landing/FAQ";
@@ -50,7 +52,7 @@ const faqJsonLd = {
       name: "How was Opinion DNA developed?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "During 2020, we interviewed 60+ experts in personality, behavioural economics, evolutionary psychology, and cognition. Over three years of development with academic psychologists and behavioural scientists from Royal Holloway, Oxford, Cambridge, University of Pennsylvania, and NYU.",
+        text: "During 2020, we interviewed 60+ experts in personality, behavioral economics, evolutionary psychology, and cognition. Over three years of development with academic psychologists and behavioral scientists from Royal Holloway, Oxford, Cambridge, University of Pennsylvania, and NYU.",
       },
     },
     {
@@ -93,8 +95,10 @@ export default function Home() {
         <Hero />
         <Features />
         <HowItWorks />
+        <WhatYouGet />
         <Impact />
         <Credibility />
+        <Founders />
         <Testimonials />
         <Pricing />
         <FAQ />

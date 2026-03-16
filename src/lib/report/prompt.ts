@@ -89,11 +89,11 @@ function buildScoreSummary(scores: number[], averages: (number | null)[] | null)
  * Build the full system prompt with the report generation guide
  */
 export function buildSystemPrompt(): string {
-  return `You are generating a personalised Opinion DNA report. This is a premium product worth $47. The report must make the reader feel genuinely seen.
+  return `You are generating a personalized Opinion DNA report. This is a premium product worth $47. The report must make the reader feel genuinely seen.
 
 ## What This Report Is
 
-A personalised psychographic profile across 48 elements in three dimensions: Personality, Values, and Meta-Thinking. The report's job is to show what the person's specific *combination* of scores reveals. The value is in the cross-referencing.
+A personalized psychographic profile across 48 elements in three dimensions: Personality, Values, and Meta-Thinking. The report's job is to show what the person's specific *combination* of scores reveals. The value is in the cross-referencing.
 
 ## Before You Write
 
@@ -109,7 +109,7 @@ Warm, intelligent, direct. Second person ("you"). Like a very smart friend who h
 Rules:
 - Contractions always (don't, can't, won't, you're)
 - No em dashes — use commas, colons, semicolons, parentheses
-- British spelling (organisation, behaviour, recognise, colour)
+- American spelling (organization, behavior, recognize, color)
 - No emojis
 - Bold sparingly (Super Powers titles, Watch Outs titles, Tips titles, occasional key phrases)
 - Parenthetical score references woven into prose: "Your Openness (90, well above the average of 78) means..."
@@ -188,7 +188,7 @@ This report is built from your responses across 48 elements of the Opinion DNA a
 
 Your scores are compared against the Parlia population average (shown in parentheses after your score). A score of 50 is the midpoint of the scale, and the average reflects the mean across all Opinion DNA respondents. Where you fall relative to both tells you something meaningful about how your mind operates compared to others.
 
-The report is organised into six parts. First, a snapshot of your full profile. Then three deep sections that synthesise your scores into actionable insight: Life & Happiness, Relationships, and Career. A fifth section covers your Cognitive Signature. The final section is a reference guide to all 48 elements, explaining what each one measures and what your specific score means.
+The report is organized into six parts. First, a snapshot of your full profile. Then three deep sections that synthesize your scores into actionable insight: Life & Happiness, Relationships, and Career. A fifth section covers your Cognitive Signature. The final section is a reference guide to all 48 elements, explaining what each one measures and what your specific score means.
 
 Throughout each section, you'll find **Super Powers** (where your profile gives you a genuine edge), **Watch Outs** (where tensions in your profile might create friction), and **Tips** (practical suggestions based on your specific combination of scores).
 
