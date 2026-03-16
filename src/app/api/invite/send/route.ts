@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { randomBytes } from "crypto";
 import { sendInviteEmail } from "@/lib/email/resend";
+import { rateLimit } from "@/lib/auth/rate-limit";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -11,10 +15,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const limited = rateLimit(`invite:${user.id}`, { limit: 10, windowMs: 3600_000 });
+  if (limited) return limited;
+
   const { email } = await request.json();
 
-  if (!email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  if (!email || typeof email !== "string" || !EMAIL_RE.test(email)) {
+    return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
+  }
+
+  if (email.toLowerCase() === user.email?.toLowerCase()) {
+    return NextResponse.json({ error: "Cannot invite yourself" }, { status: 400 });
+  }
+
+  // Require the user to have a completed purchase
+  const admin = createAdminClient();
+  const { data: purchase } = await admin
+    .from("purchases")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("status", "completed")
+    .limit(1)
+    .single();
+
+  if (!purchase) {
+    return NextResponse.json({ error: "Purchase required" }, { status: 403 });
   }
 
   // Require the user to have completed their own assessment
@@ -42,20 +67,23 @@ export async function POST(request: Request) {
       to_email: email,
       token,
       type: "personal",
+      purchase_id: purchase.id,
       expires_at: expiresAt.toISOString(),
     });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Invite insert error:", error.message);
+    return NextResponse.json({ error: "Failed to create invite" }, { status: 500 });
   }
 
-  // Send invite email via Resend
-  const fromName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Someone";
+  // Sanitize fromName — strip any HTML tags
+  const rawName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Someone";
+  const fromName = String(rawName).replace(/<[^>]*>/g, "").replace(/[\r\n]/g, "").slice(0, 100);
+
   try {
     await sendInviteEmail(email, fromName, token);
   } catch (emailError) {
     console.error("Email send failed but invite was created:", emailError);
-    // Invite is saved — email failure shouldn't block the flow
   }
 
   return NextResponse.json({ ok: true });

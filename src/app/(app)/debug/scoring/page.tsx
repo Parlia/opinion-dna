@@ -3,6 +3,7 @@
 import { QUESTIONS } from "@/lib/scoring/questions";
 import { ELEMENTS, PARLIA_AVERAGES } from "@/lib/scoring/elements";
 import { useState } from "react";
+import { notFound } from "next/navigation";
 
 const GROUP_COLORS: Record<string, string> = {
   personality: "#00B922",
@@ -11,6 +12,7 @@ const GROUP_COLORS: Record<string, string> = {
 };
 
 export default function ScoringDebugPage() {
+  if (process.env.NODE_ENV === "production") notFound();
   const [view, setView] = useState<"questions" | "simulator">("questions");
   const [answers, setAnswers] = useState<Record<number, number>>({});
 

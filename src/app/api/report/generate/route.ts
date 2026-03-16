@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildSystemPrompt, buildUserPrompt, buildCoverSection, buildPart1Tables } from "@/lib/report/prompt";
 import { PARLIA_AVERAGES } from "@/lib/scoring/elements";
+import { hasPurchase } from "@/lib/auth/require-purchase";
+import { rateLimit } from "@/lib/auth/rate-limit";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -84,6 +86,13 @@ export async function POST() {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = rateLimit(`report:${user.id}`, { limit: 3, windowMs: 3600_000 });
+  if (limited) return limited;
+
+  if (!(await hasPurchase(user.id))) {
+    return NextResponse.json({ error: "Purchase required" }, { status: 403 });
   }
 
   const { data: userScores } = await supabase

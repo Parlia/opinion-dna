@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { hasPurchase } from "@/lib/auth/require-purchase";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -7,6 +8,10 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!(await hasPurchase(user.id))) {
+    return NextResponse.json({ error: "Purchase required" }, { status: 403 });
   }
 
   const { questionIndex, answer } = await request.json();
@@ -30,7 +35,8 @@ export async function POST(request: Request) {
     );
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Quiz save error:", error.message);
+    return NextResponse.json({ error: "Failed to save answer" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

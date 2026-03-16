@@ -4,6 +4,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { PurchaseType } from "@/types/database";
 
 export async function POST(request: Request) {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("STRIPE_WEBHOOK_SECRET is not configured");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+  }
+
   const body = await request.text();
   const sig = request.headers.get("stripe-signature");
 
@@ -13,15 +19,10 @@ export async function POST(request: Request) {
 
   let event;
   try {
-    event = getStripe().webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    event = getStripe().webhooks.constructEvent(body, sig, webhookSecret);
+  } catch {
     return NextResponse.json(
-      { error: `Webhook signature verification failed: ${message}` },
+      { error: "Webhook signature verification failed" },
       { status: 400 }
     );
   }

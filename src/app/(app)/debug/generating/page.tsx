@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { ELEMENTS } from "@/lib/scoring/elements";
+import { notFound } from "next/navigation";
 
 const GENERATION_PHASES = [
   { label: "Reading your scores", duration: 4, icon: "📊" },
@@ -20,6 +21,7 @@ const ELEMENT_VERBS = [
 ];
 
 export default function GeneratingDemoPage() {
+  if (process.env.NODE_ENV === "production") notFound();
   const [progress, setProgress] = useState(0);
   const [phaseIdx, setPhaseIdx] = useState(0);
   const [elementIdx, setElementIdx] = useState(0);
