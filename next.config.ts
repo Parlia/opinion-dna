@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co https://api.stripe.com https://va.vercel-scripts.com",
+              "connect-src 'self' https://*.supabase.co https://api.stripe.com https://checkout.stripe.com https://va.vercel-scripts.com",
               "frame-src https://js.stripe.com",
               "object-src 'none'",
               "base-uri 'self'",
