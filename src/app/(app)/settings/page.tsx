@@ -1,0 +1,92 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+export default function SettingsPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      setEmail(user.email ?? "");
+      setName(user.user_metadata?.full_name ?? "");
+    }
+    load();
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+
+    const supabase = createClient();
+    await supabase.auth.updateUser({
+      data: { full_name: name },
+    });
+
+    await supabase
+      .from("profiles")
+      .update({ full_name: name })
+      .eq("id", (await supabase.auth.getUser()).data.user!.id);
+
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div className="max-w-lg mx-auto px-4 py-12">
+      <h1 className="text-2xl font-semibold text-[var(--foreground)]">
+        Settings
+      </h1>
+
+      <form onSubmit={handleSave} className="mt-8 space-y-6">
+        <div>
+          <label htmlFor="name" className="block text-sm font-medium text-[var(--foreground)] mb-1">
+            Full name
+          </label>
+          <input
+            id="name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-[var(--foreground)] mb-1">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            disabled
+            className="w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--beige-light)] text-[var(--muted)]"
+          />
+          <p className="mt-1 text-xs text-[var(--muted)]">Email cannot be changed</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-6 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+          {saved && (
+            <span className="text-sm text-green-600">Saved!</span>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+}
