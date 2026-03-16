@@ -9,11 +9,11 @@ const universities = [
 ];
 
 const press = [
-  { name: "TechCrunch", logo: "/logos/techcrunch.svg", height: 24 },
-  { name: "The Spectator", logo: "/logos/spectator.svg", height: 28 },
-  { name: "openDemocracy", logo: "/logos/opendemocracy.svg", height: 22 },
-  { name: "El País", logo: "/logos/elpais.svg", height: 26 },
-  { name: "Google News Initiative", logo: "/logos/google-news-initiative.svg", height: 22 },
+  { name: "TechCrunch", logo: "/logos/techcrunch.png", height: 28 },
+  { name: "The Spectator", logo: "/logos/spectator.png", height: 32 },
+  { name: "openDemocracy", logo: "/logos/opendemocracy.png", height: 26 },
+  { name: "El País", logo: "/logos/elpais.png", height: 30 },
+  { name: "Google News Initiative", logo: "/logos/google-news-initiative.png", height: 26 },
 ];
 
 export default function Credibility() {
@@ -42,7 +42,7 @@ export default function Credibility() {
               alt={outlet.name}
               width={outlet.height * 6}
               height={outlet.height}
-              className="opacity-40 hover:opacity-70 transition-opacity"
+              className="grayscale opacity-40 hover:grayscale-0 hover:opacity-70 transition-all duration-300"
               style={{ height: outlet.height, width: "auto" }}
             />
           ))}
