@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -56,8 +57,8 @@ function LoginForm() {
     <div className="min-h-screen bg-[var(--background)] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl tracking-tight text-[var(--foreground)]">
-            Opinion <span className="text-[var(--primary)]">DNA</span>
+          <Link href="/">
+            <Image src="/logo.png" alt="Opinion DNA" width={180} height={36} priority />
           </Link>
           <h1 className="mt-6 text-2xl font-semibold text-[var(--foreground)]">
             Welcome back

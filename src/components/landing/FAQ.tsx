@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AnimateIn from "@/components/ui/AnimateIn";
 
 const faqs = [
   {
@@ -49,32 +50,47 @@ export default function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section id="faq" className="px-6 py-20 max-w-3xl mx-auto">
-      <h2 className="text-3xl md:text-4xl font-bold text-black text-center mb-16">
-        Frequently asked questions
-      </h2>
+    <section id="faq" className="px-6 py-24 max-w-3xl mx-auto">
+      <AnimateIn>
+        <h2 className="text-3xl md:text-4xl text-black text-center mb-16">
+          Frequently asked questions
+        </h2>
+      </AnimateIn>
 
       <div className="space-y-3">
         {faqs.map((faq, i) => (
-          <div
-            key={i}
-            className="bg-white rounded-lg border border-border overflow-hidden"
-          >
-            <button
-              onClick={() => setOpenIndex(openIndex === i ? null : i)}
-              className="w-full px-6 py-4 text-left flex items-center justify-between gap-4"
-            >
-              <span className="font-semibold text-black">{faq.question}</span>
-              <span className="text-muted text-xl flex-shrink-0">
-                {openIndex === i ? "\u2212" : "+"}
-              </span>
-            </button>
-            {openIndex === i && (
-              <div className="px-6 pb-4">
-                <p className="text-foreground leading-relaxed">{faq.answer}</p>
+          <AnimateIn key={i} delay={i * 50}>
+            <div className="bg-white rounded-lg border border-border overflow-hidden">
+              <button
+                onClick={() => setOpenIndex(openIndex === i ? null : i)}
+                className="w-full px-6 py-4 text-left flex items-center justify-between gap-4 hover:bg-beige-light/50 transition-colors"
+              >
+                <span className="font-semibold text-black">{faq.question}</span>
+                <svg
+                  className="w-5 h-5 text-muted flex-shrink-0 transition-transform duration-300"
+                  style={{
+                    transform: openIndex === i ? "rotate(45deg)" : "rotate(0)",
+                  }}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+              <div
+                className="faq-answer"
+                data-open={openIndex === i}
+              >
+                <div className="faq-answer-inner">
+                  <div className="px-6 pb-4">
+                    <p className="text-foreground leading-relaxed">{faq.answer}</p>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          </AnimateIn>
         ))}
       </div>
     </section>

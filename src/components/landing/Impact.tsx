@@ -1,4 +1,5 @@
 import Image from "next/image";
+import AnimateIn from "@/components/ui/AnimateIn";
 
 const areas = [
   {
@@ -23,36 +24,40 @@ const areas = [
 
 export default function Impact() {
   return (
-    <section id="impact" className="px-6 py-20 max-w-6xl mx-auto">
-      <div className="text-center mb-16">
-        <h2 className="text-3xl md:text-4xl font-bold text-black">
-          Real life changes
-        </h2>
-        <p className="mt-4 text-lg text-muted">
-          Your Opinion DNA gives you practical insight across three areas of
-          your life.
-        </p>
-      </div>
+    <section id="impact" className="px-6 py-24 max-w-6xl mx-auto">
+      <AnimateIn>
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl text-black">
+            Real life changes
+          </h2>
+          <p className="mt-4 text-lg text-muted">
+            Your Opinion DNA gives you practical insight across three areas of
+            your life.
+          </p>
+        </div>
+      </AnimateIn>
 
       <div className="grid md:grid-cols-3 gap-8">
-        {areas.map((area) => (
-          <div key={area.title} className="text-center">
-            <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-6">
-              <Image
-                src={area.image}
-                alt={area.title}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 33vw"
-              />
+        {areas.map((area, i) => (
+          <AnimateIn key={area.title} delay={i * 100}>
+            <div className="group">
+              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-6">
+                <Image
+                  src={area.image}
+                  alt={area.title}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                />
+              </div>
+              <h3 className="text-xl text-primary mb-3">
+                {area.title}
+              </h3>
+              <p className="text-foreground leading-relaxed">
+                {area.description}
+              </p>
             </div>
-            <h3 className="text-xl font-bold text-primary mb-4">
-              {area.title}
-            </h3>
-            <p className="text-foreground leading-relaxed px-2">
-              {area.description}
-            </p>
-          </div>
+          </AnimateIn>
         ))}
       </div>
     </section>

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import AnimateIn from "@/components/ui/AnimateIn";
 
 const steps = [
   {
@@ -26,29 +27,39 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="px-6 py-20 bg-white">
+    <section id="how-it-works" className="px-6 py-24 bg-white">
       <div className="max-w-4xl mx-auto">
-        <h2 className="text-3xl md:text-4xl font-bold text-black text-center mb-16">
-          How it works
-        </h2>
+        <AnimateIn>
+          <h2 className="text-3xl md:text-4xl text-black text-center mb-16">
+            How it works
+          </h2>
+        </AnimateIn>
 
-        <div className="grid md:grid-cols-3 gap-12">
-          {steps.map((step) => (
-            <div key={step.number} className="text-center">
-              <div className="w-16 h-16 mx-auto mb-6">
-                <Image
-                  src={step.icon}
-                  alt=""
-                  width={64}
-                  height={64}
-                  className="w-full h-full opacity-60"
-                />
+        <div className="relative grid md:grid-cols-3 gap-12">
+          {/* Connecting line (desktop only) */}
+          <div className="hidden md:block absolute top-8 left-[16.67%] right-[16.67%] h-[1px] bg-border" />
+
+          {steps.map((step, i) => (
+            <AnimateIn key={step.number} delay={i * 120}>
+              <div className="text-center relative">
+                <div className="w-16 h-16 mx-auto mb-6 relative z-10 bg-white rounded-full p-2">
+                  <Image
+                    src={step.icon}
+                    alt=""
+                    width={64}
+                    height={64}
+                    className="w-full h-full"
+                  />
+                </div>
+                <div className="text-xs font-semibold text-primary uppercase tracking-widest mb-2">
+                  Step {step.number}
+                </div>
+                <h3 className="text-lg font-semibold text-black mb-3">
+                  {step.title}
+                </h3>
+                <p className="text-muted leading-relaxed">{step.description}</p>
               </div>
-              <h3 className="text-lg font-bold text-black mb-3">
-                {step.title}
-              </h3>
-              <p className="text-muted leading-relaxed">{step.description}</p>
-            </div>
+            </AnimateIn>
           ))}
         </div>
       </div>

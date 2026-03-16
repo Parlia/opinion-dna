@@ -1,6 +1,19 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { Fraunces, DM_Sans } from "next/font/google";
 import "./globals.css";
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
 
 const SITE_URL = "https://opiniondna.com";
 const TITLE = "Opinion DNA® — The most complete map of your mind";
@@ -73,7 +86,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#F5F0E8" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      <body className="antialiased">
+      <body className={`${fraunces.variable} ${dmSans.variable} antialiased`}>
         {children}
         <Analytics />
       </body>

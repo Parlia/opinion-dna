@@ -28,10 +28,16 @@ const DIMENSION_LABELS: Record<Dimension, { label: string; description: string }
 
 const DIMENSIONS: Dimension[] = ["personality", "values", "meta-thinking"];
 
+// Score level colour mapping (matches report style)
+const LEVEL_COLORS: Record<string, string> = {
+  "VERY HIGH": "#6F00FF",
+  HIGH: "#9B4DFF",
+  MEDIUM: "#B8860B",
+  LOW: "#D2691E",
+  "VERY LOW": "#CC3333",
+};
+
 // Score-based color: high scores → darker/deeper, low scores → brighter/vivid
-// Personality: dark green → bright green
-// Values: deep blue → bright blue
-// Meta-Thinking: deep purple → bright pink
 const DIMENSION_COLOR_RANGES: Record<Dimension, { low: [number, number, number]; high: [number, number, number] }> = {
   personality: {
     low:  [0, 239, 148],   // #00ef94
@@ -157,18 +163,19 @@ export default function ScoresPage() {
                         const avg = PARLIA_AVERAGES[element.index];
                         const level = getScoreLevel(score);
                         const adjustedColor = scoreColor(dimension, score);
+                        const levelColor = LEVEL_COLORS[level] || "#888";
                         return (
-                          <div key={element.index} className="px-6 py-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-3">
+                          <div key={element.index} className="px-6 py-3">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2.5">
                                 <span
-                                  className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white"
+                                  className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white"
                                   style={{ backgroundColor: adjustedColor }}
                                 >
                                   {element.code}
                                 </span>
                                 <div>
-                                  <span className="font-medium text-[var(--foreground)]">
+                                  <span className="text-sm font-medium text-[var(--foreground)]">
                                     {element.name}
                                   </span>
                                   <p className="text-xs text-[var(--muted)] max-w-md">
@@ -176,16 +183,19 @@ export default function ScoresPage() {
                                   </p>
                                 </div>
                               </div>
-                              <div className="text-right shrink-0 ml-4">
-                                <span className="text-lg font-semibold text-[var(--foreground)]">
-                                  {score}
-                                </span>
+                              <div className="flex items-center gap-3 shrink-0 ml-4">
                                 {avg !== null && (
-                                  <span className="text-xs text-[var(--muted)] block">
+                                  <span className="text-xs text-[#aaa]">
                                     avg {avg}
                                   </span>
                                 )}
-                                <span className="text-xs text-[var(--muted)] block">
+                                <span className="text-base font-bold text-[var(--foreground)] w-8 text-right">
+                                  {score}
+                                </span>
+                                <span
+                                  className="text-[10px] font-bold w-16 text-right"
+                                  style={{ color: levelColor }}
+                                >
                                   {level}
                                 </span>
                               </div>
@@ -200,7 +210,7 @@ export default function ScoresPage() {
                               />
                               {avg !== null && (
                                 <div
-                                  className="absolute top-0 h-full w-0.5 bg-[var(--foreground)] opacity-30"
+                                  className="absolute top-0 h-full w-0.5 bg-[var(--foreground)] opacity-20"
                                   style={{ left: `${avg}%` }}
                                   title={`Average: ${avg}`}
                                 />

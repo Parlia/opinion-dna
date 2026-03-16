@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -28,8 +29,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-8">
-              <Link href="/dashboard" className="text-lg tracking-tight text-[var(--foreground)]">
-                Opinion <span className="text-[var(--primary)]">DNA</span>
+              <Link href="/dashboard">
+                <Image src="/logo.png" alt="Opinion DNA" width={140} height={28} priority />
               </Link>
               <nav className="hidden md:flex items-center gap-1">
                 {navLinks.map((link) => (
