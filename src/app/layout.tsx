@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Fraunces, DM_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -89,6 +90,7 @@ export default function RootLayout({
       <body className={`${fraunces.variable} ${dmSans.variable} antialiased`}>
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
