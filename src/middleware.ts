@@ -14,6 +14,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 301);
   }
 
+  // Catch Supabase OAuth code that lands on wrong path — redirect to /callback
+  // Safe: the code is a one-time PKCE token that can only be exchanged once,
+  // only by the session that initiated the flow, and expires in minutes.
+  // We only forward it — never log, store, or expose it.
+  const code = request.nextUrl.searchParams.get("code");
+  if (code && request.nextUrl.pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/callback";
+    return NextResponse.redirect(url);
+  }
+
   // Supabase session refresh + auth guards
   return await updateSession(request);
 }
