@@ -75,8 +75,8 @@ export default function SignupPage() {
     <div className="min-h-screen bg-[var(--background)] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/">
-            <Image src="/logo.png" alt="Opinion DNA" width={180} height={36} priority />
+          <Link href="/" className="inline-block">
+            <Image src="/logo.png" alt="Opinion DNA" width={180} height={36} priority className="mx-auto" />
           </Link>
           <h1 className="mt-6 text-2xl font-semibold text-[var(--foreground)]">
             Create your account

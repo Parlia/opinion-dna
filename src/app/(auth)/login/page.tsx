@@ -60,8 +60,8 @@ function LoginForm() {
     <div className="min-h-screen bg-[var(--background)] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/">
-            <Image src="/logo.png" alt="Opinion DNA" width={180} height={36} priority />
+          <Link href="/" className="inline-block">
+            <Image src="/logo.png" alt="Opinion DNA" width={180} height={36} priority className="mx-auto" />
           </Link>
           <h1 className="mt-6 text-2xl font-semibold text-[var(--foreground)]">
             Welcome back
@@ -132,6 +132,12 @@ function LoginForm() {
                 className="w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
                 placeholder="Your password"
               />
+              <Link
+                href="/forgot-password"
+                className="block mt-1.5 text-xs text-[var(--muted)] hover:text-[var(--primary)] transition-colors"
+              >
+                Forgot password?
+              </Link>
             </div>
 
             {error && (
