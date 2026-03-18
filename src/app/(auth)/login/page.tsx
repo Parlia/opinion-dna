@@ -51,6 +51,7 @@ function LoginForm() {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/callback?next=${encodeURIComponent(next)}`,
+        queryParams: { prompt: "select_account" },
       },
     });
   }
