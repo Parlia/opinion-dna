@@ -99,7 +99,7 @@ function ScoreBar({
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2.5">
           <span
-            className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white"
+            className="min-w-7 w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0"
             style={{ backgroundColor: item.barColor }}
           >
             {item.code}
