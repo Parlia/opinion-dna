@@ -1,84 +1,14 @@
 import { NextResponse } from "next/server";
-import https from "node:https";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildSystemPrompt, buildUserPrompt, buildCoverSection, buildPart1Tables } from "@/lib/report/prompt";
 import { PARLIA_AVERAGES } from "@/lib/scoring/elements";
 import { hasPurchase } from "@/lib/auth/require-purchase";
 import { rateLimit } from "@/lib/auth/rate-limit";
+import { streamClaude } from "@/lib/report/claude-stream";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
-
-// Streaming call to Anthropic API — keeps connection alive to avoid VPN/proxy timeouts
-function callClaude(apiKey: string, systemPrompt: string, userPrompt: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify({
-      model: "claude-opus-4-6",
-      max_tokens: 16000,
-      stream: true,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    });
-
-    const req = https.request(
-      {
-        hostname: "api.anthropic.com",
-        path: "/v1/messages",
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "content-length": Buffer.byteLength(body),
-        },
-      },
-      (res) => {
-        if (res.statusCode !== 200) {
-          let errorData = "";
-          res.on("data", (chunk) => (errorData += chunk));
-          res.on("end", () => {
-            reject(new Error(`Anthropic API error ${res.statusCode}: ${errorData}`));
-          });
-          return;
-        }
-
-        let fullText = "";
-        let buffer = "";
-
-        res.on("data", (chunk) => {
-          buffer += chunk.toString();
-
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const data = line.slice(6).trim();
-            if (data === "[DONE]") continue;
-
-            try {
-              const event = JSON.parse(data);
-              if (event.type === "content_block_delta" && event.delta?.text) {
-                fullText += event.delta.text;
-              }
-            } catch {
-              // Skip unparseable lines
-            }
-          }
-        });
-
-        res.on("end", () => {
-          resolve(fullText);
-        });
-      }
-    );
-
-    req.on("error", reject);
-    req.write(body);
-    req.end();
-  });
-}
 
 export async function POST() {
   const supabase = await createClient();
@@ -131,7 +61,7 @@ export async function POST() {
       1500 // Parlia dataset size
     );
 
-    const aiContent = await callClaude(
+    const aiContent = await streamClaude(
       process.env.ANTHROPIC_API_KEY!,
       systemPrompt,
       userPrompt
