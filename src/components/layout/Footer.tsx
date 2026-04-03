@@ -25,17 +25,17 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/signup" className="hover:text-white transition-colors">
+                <Link href="/couples" className="hover:text-white transition-colors">
                   Couples Report
                 </Link>
               </li>
               <li>
-                <Link href="/signup" className="hover:text-white transition-colors">
+                <Link href="/co-founders" className="hover:text-white transition-colors">
                   Co-Founders Report
                 </Link>
               </li>
               <li>
-                <Link href="/signup" className="hover:text-white transition-colors">
+                <Link href="/teams" className="hover:text-white transition-colors">
                   Teams Report
                 </Link>
               </li>
@@ -63,6 +63,16 @@ export default function Footer() {
               <li>
                 <Link href="/tests" className="hover:text-white transition-colors">
                   Assessments
+                </Link>
+              </li>
+              <li>
+                <Link href="/book" className="hover:text-white transition-colors">
+                  The Book
+                </Link>
+              </li>
+              <li>
+                <Link href="/referrals" className="hover:text-white transition-colors">
+                  Referral Program
                 </Link>
               </li>
             </ul>
