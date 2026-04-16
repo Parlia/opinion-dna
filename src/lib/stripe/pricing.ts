@@ -1,155 +1,99 @@
 /**
- * Comparison Report Pricing Calculator
+ * Comparison Report Pricing
  *
- * Determines the correct price for a comparison report based on
- * what each partner has already purchased.
+ * Simple model: both partners must have completed their own Personal
+ * assessment ($47 each). Then either can purchase the comparison add-on.
  *
- * Core principle: you always pay the bundle price minus what's
- * already been paid for assessments.
- *
- * ┌──────────────────────┬──────────┬────────────┬─────────┐
- * │ Assessments paid     │ Relation │ They pay   │ Product │
- * ├──────────────────────┼──────────┼────────────┼─────────┤
- * │ Both ($94)           │ Couples  │ $49        │ upgrade │
- * │ Both ($94)           │ Cofndrs  │ $399       │ upgrade │
- * │ One ($47)            │ Couples  │ $99        │ single  │
- * │ One ($47)            │ Cofndrs  │ $449       │ single  │
- * │ Neither              │ Couples  │ $149       │ bundle  │
- * │ Neither              │ Cofndrs  │ $499       │ bundle  │
- * │ Inviter has bundle   │ Either   │ Free       │ —       │
- * └──────────────────────┴──────────┴────────────┴─────────┘
+ * ┌──────────────┬─────────┐
+ * │ Relation     │ Price   │
+ * ├──────────────┼─────────┤
+ * │ Couples      │ $49     │
+ * │ Co-Founders  │ $399    │
+ * └──────────────┴─────────┘
  */
 
-import { PRODUCTS, UPGRADE_PRODUCTS, type Product } from "./products";
+import { PRODUCTS, type Product } from "./products";
 
-export type RelationshipType = "couples" | "cofounders";
+export type RelationshipType = "couples" | "cofounders" | "friends";
 
 export interface PricingResult {
-  /** The product to purchase (null if free) */
+  /** The product to purchase (null if already purchased) */
   product: Product | null;
   /** Display price in dollars */
   price: number;
   /** Whether this comparison is already paid for */
   isFree: boolean;
-  /** Human-readable breakdown for the UI */
-  breakdown: string;
-  /** How many assessments are already covered */
-  assessmentsCovered: number;
-  /** Whether Couples report is available yet */
+  /** Whether both partners have completed assessments */
+  bothAssessed: boolean;
+  /** Whether this comparison type is available */
   isAvailable: boolean;
 }
 
 interface Purchase {
   type: string;
   status: string;
-  amount_cents: number | null;
 }
 
-/** Bundle types that cover both assessments + comparison */
-const BUNDLE_TYPES = new Set(["couples", "cofounders", "teams"]);
-
-/** Types that include a Personal assessment */
-const ASSESSMENT_TYPES = new Set(["personal", "couples", "cofounders", "teams", "couples_upgrade_single", "cofounders_upgrade_single"]);
-
-/** Types that cover a comparison report */
-const COMPARISON_TYPES: Record<string, Set<string>> = {
-  couples: new Set(["couples", "couples_upgrade", "couples_upgrade_single"]),
-  cofounders: new Set(["cofounders", "cofounders_upgrade", "cofounders_upgrade_single", "teams"]),
-};
-
-function hasCompletedPurchaseOfType(purchases: Purchase[], types: Set<string>): boolean {
-  return purchases.some(p => p.status === "completed" && types.has(p.type));
+function hasCompletedAssessment(purchases: Purchase[]): boolean {
+  return purchases.some(
+    (p) => p.status === "completed" && p.type === "personal"
+  );
 }
 
-function hasAssessment(purchases: Purchase[]): boolean {
-  return purchases.some(p => p.status === "completed" && ASSESSMENT_TYPES.has(p.type));
+function hasCompletedComparison(
+  purchases: Purchase[],
+  relationshipType: RelationshipType
+): boolean {
+  const type =
+    relationshipType === "couples"
+      ? "couples_comparison"
+      : "cofounders_comparison";
+  return purchases.some((p) => p.status === "completed" && p.type === type);
 }
 
 export function calculateComparisonPrice(
   inviterPurchases: Purchase[],
   inviteePurchases: Purchase[],
-  relationshipType: RelationshipType,
+  relationshipType: RelationshipType
 ): PricingResult {
-  const couplesAvailable = false; // Couples report not yet built — gate behind feature flag
-  const isAvailable = relationshipType === "cofounders" || couplesAvailable;
+  const isAvailable = true;
+  const bothAssessed =
+    hasCompletedAssessment(inviterPurchases) &&
+    hasCompletedAssessment(inviteePurchases);
 
-  // 1. Check if inviter already has a covering bundle
-  //    Co-Founders bundle covers both types; Couples only covers Couples
-  const inviterHasBundle = hasCompletedPurchaseOfType(inviterPurchases, BUNDLE_TYPES);
-  const inviterAlreadyHasComparison = hasCompletedPurchaseOfType(
-    inviterPurchases,
-    COMPARISON_TYPES[relationshipType] || new Set(),
-  );
-
-  // Co-Founders purchase subsumes Couples
-  const inviterHasCofounders = hasCompletedPurchaseOfType(inviterPurchases, new Set(["cofounders"]));
-
-  if (inviterAlreadyHasComparison || (relationshipType === "couples" && inviterHasCofounders)) {
+  // Friends comparison is always free
+  if (relationshipType === "friends") {
     return {
       product: null,
       price: 0,
       isFree: true,
-      breakdown: "Included with your purchase",
-      assessmentsCovered: 2,
+      bothAssessed,
       isAvailable,
     };
   }
 
-  if (inviterHasBundle) {
+  // Already purchased this comparison
+  if (hasCompletedComparison(inviterPurchases, relationshipType)) {
     return {
       product: null,
       price: 0,
       isFree: true,
-      breakdown: "Included with your purchase",
-      assessmentsCovered: 2,
+      bothAssessed,
       isAvailable,
     };
   }
 
-  // 2. Count how many Personal assessments are covered
-  const inviterHasAssessment = hasAssessment(inviterPurchases);
-  const inviteeHasAssessment = hasAssessment(inviteePurchases);
-  const assessmentsCovered = (inviterHasAssessment ? 1 : 0) + (inviteeHasAssessment ? 1 : 0);
+  const productId =
+    relationshipType === "couples"
+      ? "couples_comparison"
+      : "cofounders_comparison";
+  const product = PRODUCTS.find((p) => p.id === productId)!;
 
-  // 3. Select the right upgrade product
-  const bundleProduct = PRODUCTS.find(p => p.type === relationshipType);
-
-  if (assessmentsCovered === 2) {
-    // Both have assessments — cheapest upgrade
-    const upgradeType = `${relationshipType}_upgrade`;
-    const product = UPGRADE_PRODUCTS.find(p => p.type === upgradeType)!;
-    return {
-      product,
-      price: product.price,
-      isFree: false,
-      breakdown: `Both assessments completed ($94 covered). ${relationshipType === "cofounders" ? "Co-Founder" : "Couples"} comparison report.`,
-      assessmentsCovered: 2,
-      isAvailable,
-    };
-  }
-
-  if (assessmentsCovered === 1) {
-    // One has assessment — mid-tier upgrade (includes partner's assessment)
-    const upgradeType = `${relationshipType}_upgrade_single`;
-    const product = UPGRADE_PRODUCTS.find(p => p.type === upgradeType)!;
-    const who = inviterHasAssessment ? "Your" : "Their";
-    return {
-      product,
-      price: product.price,
-      isFree: false,
-      breakdown: `${who} assessment completed ($47 covered). Includes partner's assessment + comparison report.`,
-      assessmentsCovered: 1,
-      isAvailable,
-    };
-  }
-
-  // Neither has paid — full bundle price
   return {
-    product: bundleProduct || null,
-    price: bundleProduct?.price || 0,
+    product,
+    price: product.price,
     isFree: false,
-    breakdown: `Includes both assessments + comparison report.`,
-    assessmentsCovered: 0,
+    bothAssessed,
     isAvailable,
   };
 }

@@ -205,8 +205,7 @@ export default function CoFoundersPage() {
         </h2>
         <p className="mt-4 text-muted max-w-xl mx-auto">
           Each co-founder takes the Personal Assessment ($47 each). Then
-          unlock the Co-Founder Comparison Report from your dashboard. Already
-          assessed? The comparison upgrade is just $399.
+          unlock the Co-Founder Comparison Report ($399) from your dashboard.
         </p>
         <Link
           href="/signup"

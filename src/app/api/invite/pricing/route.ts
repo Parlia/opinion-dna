@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/invite/pricing?inviteId=X&type=cofounders|couples
  *
- * Returns the price for generating a comparison report,
- * based on what each partner has already purchased.
+ * Returns the price for generating a comparison report.
+ * Both partners must have completed their own Personal assessment.
  */
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -23,8 +23,8 @@ export async function GET(request: Request) {
   const inviteId = url.searchParams.get("inviteId");
   const relationshipType = url.searchParams.get("type") as RelationshipType;
 
-  if (!inviteId || !relationshipType || !["couples", "cofounders"].includes(relationshipType)) {
-    return NextResponse.json({ error: "inviteId and type (couples|cofounders) required" }, { status: 400 });
+  if (!inviteId || !relationshipType || !["couples", "cofounders", "friends"].includes(relationshipType)) {
+    return NextResponse.json({ error: "inviteId and type (couples|cofounders|friends) required" }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -48,12 +48,12 @@ export async function GET(request: Request) {
   // Get purchases for both users
   const { data: inviterPurchases } = await admin
     .from("purchases")
-    .select("type, status, amount_cents")
+    .select("type, status")
     .eq("user_id", invite.from_user_id);
 
   const { data: inviteePurchases } = await admin
     .from("purchases")
-    .select("type, status, amount_cents")
+    .select("type, status")
     .eq("user_id", invite.to_user_id);
 
   const result = calculateComparisonPrice(
@@ -65,8 +65,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     price: result.price,
     isFree: result.isFree,
-    breakdown: result.breakdown,
-    assessmentsCovered: result.assessmentsCovered,
+    bothAssessed: result.bothAssessed,
     isAvailable: result.isAvailable,
     productId: result.product?.id || null,
   });

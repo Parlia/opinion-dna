@@ -101,11 +101,11 @@ function ComparePage() {
   }, []);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selectedTypes, setSelectedTypes] = useState<Record<string, "cofounders" | "couples">>({});
-  const [pricing, setPricing] = useState<Record<string, { price: number; isFree: boolean; breakdown: string; isAvailable: boolean; productId: string | null }>>({});
+  const [selectedTypes, setSelectedTypes] = useState<Record<string, "cofounders" | "couples" | "friends">>({});
+  const [pricing, setPricing] = useState<Record<string, { price: number; isFree: boolean; bothAssessed: boolean; isAvailable: boolean; productId: string | null }>>({});
   const [pricingLoading, setPricingLoading] = useState<Set<string>>(new Set());
 
-  async function fetchPricing(inviteId: string, type: "cofounders" | "couples") {
+  async function fetchPricing(inviteId: string, type: "cofounders" | "couples" | "friends") {
     setPricingLoading(prev => new Set(prev).add(inviteId));
     try {
       const res = await fetch(`/api/invite/pricing?inviteId=${inviteId}&type=${type}`);
@@ -117,7 +117,7 @@ function ComparePage() {
     setPricingLoading(prev => { const s = new Set(prev); s.delete(inviteId); return s; });
   }
 
-  function handleTypeChange(inviteId: string, type: "cofounders" | "couples") {
+  function handleTypeChange(inviteId: string, type: "cofounders" | "couples" | "friends") {
     setSelectedTypes(prev => ({ ...prev, [inviteId]: type }));
     fetchPricing(inviteId, type);
   }
@@ -352,25 +352,34 @@ function ComparePage() {
                         >
                           Couple
                         </button>
+                        <button
+                          onClick={() => handleTypeChange(invite.id, "friends")}
+                          className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                          style={{
+                            backgroundColor: type === "friends" ? "var(--primary)" : "transparent",
+                            color: type === "friends" ? "white" : "var(--muted)",
+                            border: type === "friends" ? "none" : "1px solid var(--border)",
+                          }}
+                        >
+                          Friends <span className="text-[10px] opacity-70">Free</span>
+                        </button>
                       </div>
 
-                      {/* Pricing breakdown */}
+                      {/* Status and action */}
                       {isLoadingPrice ? (
-                        <p className="text-sm text-[var(--muted)] mb-3">Calculating price...</p>
-                      ) : invitePricing ? (
-                        <p className="text-sm text-[var(--muted)] mb-3">
-                          {invitePricing.isFree ? (
-                            <span className="text-green-600 font-medium">Included with your purchase</span>
-                          ) : (
-                            <>{invitePricing.breakdown}</>
-                          )}
+                        <p className="text-sm text-[var(--muted)] mb-3">Checking status...</p>
+                      ) : invitePricing && !invitePricing.bothAssessed ? (
+                        <p className="text-sm text-amber-600 mb-3">
+                          Waiting for {getDisplayName(invite)} to complete their assessment
                         </p>
+                      ) : invitePricing?.isFree ? (
+                        <p className="text-sm text-green-600 font-medium mb-3">Ready to generate</p>
                       ) : null}
 
                       {/* Action button */}
                       <button
                         onClick={() => handlePurchaseAndCompare(invite.id)}
-                        disabled={generating === invite.id || isLoadingPrice || (invitePricing && !invitePricing.isAvailable)}
+                        disabled={generating === invite.id || isLoadingPrice || !invitePricing?.bothAssessed}
                         className="px-5 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{
                           backgroundColor: generating === invite.id ? "var(--beige-dark)" : "var(--primary)",
@@ -379,17 +388,13 @@ function ComparePage() {
                       >
                         {generating === invite.id
                           ? "Generating report..."
-                          : invitePricing?.isFree
-                            ? "Generate Report"
-                            : invitePricing
-                              ? `Generate Report — $${invitePricing.price}`
-                              : "Generate Report"
+                          : !invitePricing?.bothAssessed
+                            ? "Waiting for assessment..."
+                            : invitePricing?.isFree
+                              ? "Generate Report"
+                              : `Generate Report — $${invitePricing?.price}`
                         }
                       </button>
-
-                      {invitePricing && !invitePricing.isAvailable && type === "couples" && (
-                        <p className="text-xs text-[var(--muted)] mt-2">Couples comparison coming soon</p>
-                      )}
 
                       {generateError && generating === null && (
                         <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">

@@ -1,4 +1,4 @@
-export type PurchaseType = "personal" | "couples" | "cofounders" | "teams" | "coaching";
+export type PurchaseType = "personal" | "couples_comparison" | "cofounders_comparison" | "friends_comparison";
 export type PurchaseStatus = "pending" | "completed" | "refunded";
 export type ReportStatus = "generating" | "completed" | "failed";
 export type InviteStatus = "pending" | "accepted" | "expired" | "declined";

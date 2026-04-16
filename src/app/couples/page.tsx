@@ -205,8 +205,7 @@ export default function CouplesPage() {
         </h2>
         <p className="mt-4 text-muted max-w-xl mx-auto">
           Each partner takes the Personal Assessment ($47 each). Then
-          unlock the Couples Comparison Report from your dashboard. Already
-          assessed? The comparison upgrade is just $49.
+          unlock the Couples Comparison Report ($49) from your dashboard.
         </p>
         <Link
           href="/signup"

@@ -66,6 +66,12 @@ const SECTION_STYLES: Record<string, { accent: string; bg: string; icon: string 
   "Perfect Pitches": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🎤" },
   "All 48 Dimensions": { accent: "#555", bg: "#F9F8F6", icon: "📋" },
   "What Now": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🎯" },
+  // Friends report sections
+  "Friendship Profile": { accent: "#E91E63", bg: "#FFF0F5", icon: "💜" },
+  "Where You Click": { accent: "#1a7a3a", bg: "#F4FBF7", icon: "✨" },
+  "Butt Heads": { accent: "#E67E22", bg: "#FFF8F0", icon: "😄" },
+  "Conversation Starters": { accent: "#00A86B", bg: "#F4FBF7", icon: "💬" },
+  "Friend You Need": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🤝" },
 };
 
 function getSectionStyle(title: string) {
@@ -611,6 +617,12 @@ export default function ComparisonReportPage() {
     ["pitch", "Pitches"],
     ["48 dimension", "Comparison"],
     ["what now", "What Now?"],
+    // Friends report
+    ["friendship profile", "Profile"],
+    ["where you click", "Click"],
+    ["butt heads", "Friction"],
+    ["conversation starter", "Starters"],
+    ["friend you need", "The Friend"],
   ];
   function getShortLabel(title: string): string {
     const lower = title.toLowerCase();

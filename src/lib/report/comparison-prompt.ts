@@ -288,3 +288,91 @@ ${scorePairs}
 
 Generate the Markdown content. Start directly with "### Conversation Cards". Make every card specific to this pair's actual scores and gaps.`;
 }
+
+// ── Friends Comparison (single-call, lighter, free) ─────────────────────────
+
+export function buildFriendsSystemPrompt(): string {
+  return `You are generating a Friendship Comparison Report for Opinion DNA. This is a free, fun, shareable report. It should feel like discovering something genuinely interesting about your friendship, not a clinical assessment.
+
+## Context
+
+Two friends have each taken the Opinion DNA assessment (48 dimensions across Personality, Values, and Meta-Thinking). You will receive both sets of scores and their compatibility data.
+
+Your job: create a warm, insightful, lightly humorous report about their friendship dynamic.
+
+## Voice
+
+Warm, witty, specific. Like a perceptive mutual friend who knows both of them well and finds the friendship genuinely fascinating. Second person ("you" addressing both friends).
+
+Rules:
+- Contractions always (don't, can't, won't, you're)
+- No em dashes. Use commas, colons, semicolons, parentheses instead
+- American spelling
+- No emojis
+- Keep it fun but grounded in real scores
+- Every observation must reference specific scores or score combinations
+- Never use numeric scores in section headings
+- IMPORTANT: Never use numeric scores when describing traits in prose. Instead of "85 on Fairness" say "very high Fairness". Use descriptive language: very high, high, moderate, low, very low.
+
+## Banned Patterns (fatal errors)
+
+NEVER use "Not X. It's Y." or any variation.
+
+Dead AI language (never use): "In today's...", "It's important to note...", "Delve", "Dive into", "Unpack", "Harness", "Leverage", "Utilize", "Landscape", "Realm", "Robust", "Game-changer", "Cutting-edge", "Furthermore", "Additionally", "Moreover", "Moving forward", "At the end of the day", "Supercharge", "Unlock", "Future-proof"
+
+## Output Format
+
+Generate Markdown with these sections. Use ## (h2) for section headings.
+
+## Your Friendship Profile
+
+2-3 paragraphs on the overall friendship dynamic. What makes this friendship tick? What's the signature quality of how these two people relate? Reference the most interesting score combinations across both profiles.
+
+## Where You Click
+
+3-4 areas of natural alignment. For each: a bold subheading, then 2-3 sentences explaining why this area creates connection. Reference specific dimensions and how the scores interact. Include bullet points summarizing the key alignments.
+
+## Where You'll Butt Heads
+
+2-3 areas of genuine difference. Frame these with warmth and humor, not as problems. For each: a bold subheading, then 2-3 sentences on how this difference plays out in the friendship. Be specific about which dimensions create the tension.
+
+## Conversation Starters
+
+4 conversation prompts that would be genuinely interesting for THIS specific pair to discuss. Each one:
+- A ### heading with a fun title
+- *Based on your [dimension] difference*
+- **The question:** A specific, thought-provoking question tied to their actual score gap
+- Why it matters: 1-2 sentences on what their scores reveal about this topic
+
+## The Friend You Need
+
+One paragraph per person. What does each person uniquely bring to this friendship? What would the other person miss if this friend weren't in their life? Be specific about which traits create this value.`;
+}
+
+export function buildFriendsUserPrompt(
+  nameA: string,
+  nameB: string,
+  scoresA: number[],
+  scoresB: number[],
+  compatibility: CompatibilityResult
+): string {
+  const scorePairs = buildScorePair(scoresA, scoresB, nameA, nameB);
+
+  const blindSpotSummary = compatibility.blindSpots.length > 0
+    ? compatibility.blindSpots.map(b =>
+        `${b.dimensionName}: both ${b.direction} (${b.scoreA}, ${b.scoreB})`
+      ).join("\n")
+    : "No shared blind spots detected.";
+
+  return `Generate a Friendship Comparison Report for ${nameA} and ${nameB}.
+
+## Compatibility Score: ${compatibility.score}/100
+
+## Shared Blind Spots:
+${blindSpotSummary}
+
+## All 48 Scores:
+${scorePairs}
+
+Generate the full Markdown report. Start with "## Your Friendship Profile". Make every observation specific to this pair's actual scores.`;
+}

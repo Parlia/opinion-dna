@@ -11,6 +11,8 @@ import {
   buildCall1UserPrompt,
   buildCall2SystemPrompt,
   buildCall2UserPrompt,
+  buildFriendsSystemPrompt,
+  buildFriendsUserPrompt,
 } from "@/lib/report/comparison-prompt";
 import { sendScorecardEmail } from "@/lib/email/scorecard";
 import { rateLimit } from "@/lib/auth/rate-limit";
@@ -70,17 +72,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authorized for this invite" }, { status: 403 });
   }
 
-  // Check purchase on the INVITER (not the invitee — invitee is a guest)
-  const { data: purchase } = await admin
-    .from("purchases")
-    .select("id")
-    .eq("user_id", invite.from_user_id)
-    .eq("status", "completed")
-    .limit(1)
-    .single();
+  // Check purchase on the INVITER (friends comparison is free)
+  if (relType !== "friends") {
+    const { data: purchase } = await admin
+      .from("purchases")
+      .select("id")
+      .eq("user_id", invite.from_user_id)
+      .eq("status", "completed")
+      .limit(1)
+      .single();
 
-  if (!purchase) {
-    return NextResponse.json({ error: "Purchase required (inviter)" }, { status: 403 });
+    if (!purchase) {
+      return NextResponse.json({ error: "Purchase required (inviter)" }, { status: 403 });
+    }
   }
 
   // Check if comparison report already exists for this invite (idempotency)
@@ -148,6 +152,51 @@ export async function POST(request: Request) {
 
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY!;
+
+    // ── Friends: single-call, lighter report ─────────────────────────
+    if (relType === "friends") {
+      const friendsContent = await streamClaude(
+        apiKey,
+        buildFriendsSystemPrompt(),
+        buildFriendsUserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, compatibility)
+      );
+
+      const scoreTable = buildComparisonScoreTable(scoresFrom.scores, scoresTo.scores, nameA, nameB);
+
+      const content = `# Friendship Comparison
+
+**${nameA} & ${nameB}**
+
+*A comparative look across 48 dimensions of how you think, what you value, and how your minds work.*
+
+*Prepared by Opinion DNA opiniondna.com*
+
+---
+
+${friendsContent}
+
+---
+
+## All 48 Dimensions Compared
+
+${scoreTable}
+
+---
+
+*The Opinion DNA was designed in consultation with academic psychologists and behavioral scientists from the universities of Royal Holloway, Oxford, Cambridge, University of Pennsylvania, City University, and NYU.*
+
+*opiniondna.com*`;
+
+      await admin.from("reports").update({ content, status: "completed" }).eq("id", report.id);
+      await admin.from("invites").update({
+        comparison_report_id: report.id,
+        compatibility_score: compatibility.score,
+      }).eq("id", inviteId);
+
+      return NextResponse.json({ reportId: report.id, status: "completed", score: compatibility.score });
+    }
+
+    // ── Co-Founders/Couples: two-call architecture ───────────────────
 
     // ── Step 3: Call 1 — Structured analysis (JSON) ───────────────────
     let call1Analysis: string;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { PurchaseType } from "@/types/database";
+import type { ProductType } from "@/lib/stripe/products";
 
 export async function POST(request: Request) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const userId = session.metadata?.user_id;
-    const productType = session.metadata?.product_type as PurchaseType;
+    const productType = session.metadata?.product_type as ProductType;
 
     if (userId && productType) {
       const supabase = createAdminClient();
@@ -56,37 +56,6 @@ export async function POST(request: Request) {
           comparison_purchase_id: purchase.id,
           ...(relationshipType && { relationship_type: relationshipType }),
         }).eq("id", inviteId);
-
-        // If this is a bundle or single-upgrade that includes the partner's assessment,
-        // create a zero-dollar Personal purchase for the invitee so hasPurchase() works
-        const includesPartner = ["couples", "cofounders", "teams", "couples_upgrade_single", "cofounders_upgrade_single"].includes(productType);
-        if (includesPartner) {
-          const { data: invite } = await supabase
-            .from("invites")
-            .select("to_user_id")
-            .eq("id", inviteId)
-            .single();
-
-          if (invite?.to_user_id) {
-            // Check if invitee already has a purchase
-            const { data: existing } = await supabase
-              .from("purchases")
-              .select("id")
-              .eq("user_id", invite.to_user_id)
-              .eq("status", "completed")
-              .limit(1);
-
-            if (!existing || existing.length === 0) {
-              await supabase.from("purchases").insert({
-                user_id: invite.to_user_id,
-                type: "personal" as PurchaseType,
-                status: "completed",
-                stripe_session_id: session.id,
-                amount_cents: 0, // Covered by partner's bundle
-              });
-            }
-          }
-        }
       }
     }
   }
