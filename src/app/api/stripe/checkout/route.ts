@@ -48,8 +48,9 @@ export async function GET(request: NextRequest) {
     customer: customerId,
     line_items: [{ price: product.priceId, quantity: 1 }],
     mode: "payment",
+    allow_promotion_codes: true,
     success_url: inviteId
-      ? `${request.nextUrl.origin}/compare?purchase=success&session_id={CHECKOUT_SESSION_ID}&inviteId=${inviteId}`
+      ? `${request.nextUrl.origin}/compare?purchase=success&session_id={CHECKOUT_SESSION_ID}&inviteId=${inviteId}&type=${relationshipType}`
       : `${request.nextUrl.origin}/dashboard?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: inviteId
       ? `${request.nextUrl.origin}/compare?purchase=cancelled`

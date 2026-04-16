@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -19,6 +19,30 @@ interface Invite {
 interface Profile {
   id: string;
   full_name: string | null;
+}
+
+interface PricingData {
+  price: number;
+  isFree: boolean;
+  bothAssessed: boolean;
+  isAvailable: boolean;
+  productId: string | null;
+  selectionState: "none" | "i_selected" | "partner_selected" | "both_selected" | "complete";
+  reportId: string | null;
+  compatibilityScore: number | null;
+}
+
+const RELATIONSHIP_TYPES = ["friends", "couples", "cofounders"] as const;
+type RelationshipType = (typeof RELATIONSHIP_TYPES)[number];
+
+const TYPE_LABELS: Record<RelationshipType, string> = {
+  friends: "Friends",
+  couples: "Couples",
+  cofounders: "Co-Founders",
+};
+
+function pricingKey(inviteId: string, type: RelationshipType): string {
+  return `${inviteId}_${type}`;
 }
 
 export default function ComparePageWrapper() {
@@ -41,17 +65,41 @@ function ComparePage() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [pricing, setPricing] = useState<Record<string, PricingData>>({});
+  const [pricingLoading, setPricingLoading] = useState<Set<string>>(new Set());
+  const [selectingType, setSelectingType] = useState<string | null>(null);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
-  // Auto-trigger comparison after successful Stripe checkout redirect
+  const fetchPricing = useCallback(async (inviteId: string, type: RelationshipType) => {
+    const key = pricingKey(inviteId, type);
+    setPricingLoading(prev => new Set(prev).add(key));
+    try {
+      const res = await fetch(`/api/invite/pricing?inviteId=${inviteId}&type=${type}`);
+      const data = await res.json();
+      if (!data.error) {
+        setPricing(prev => ({ ...prev, [key]: data }));
+      }
+    } catch { /* ignore */ }
+    setPricingLoading(prev => { const s = new Set(prev); s.delete(key); return s; });
+  }, []);
+
+  const fetchAllPricing = useCallback(async (joinedInvites: Invite[]) => {
+    for (const invite of joinedInvites) {
+      for (const type of RELATIONSHIP_TYPES) {
+        await fetchPricing(invite.id, type);
+      }
+    }
+  }, [fetchPricing]);
+
+  // Auto-trigger select-type after successful Stripe checkout redirect
   useEffect(() => {
     const purchaseStatus = searchParams.get("purchase");
     const inviteId = searchParams.get("inviteId");
-    if (purchaseStatus === "success" && inviteId && !generating) {
-      // Clean URL
+    const type = searchParams.get("type") as RelationshipType | null;
+    if (purchaseStatus === "success" && inviteId) {
       window.history.replaceState({}, "", "/compare");
-      // Trigger comparison generation
-      handleCompare(inviteId, "cofounders");
+      handleSelectType(inviteId, type || "cofounders");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -100,52 +148,58 @@ function ComparePage() {
     loadData();
   }, []);
 
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selectedTypes, setSelectedTypes] = useState<Record<string, "cofounders" | "couples" | "friends">>({});
-  const [pricing, setPricing] = useState<Record<string, { price: number; isFree: boolean; bothAssessed: boolean; isAvailable: boolean; productId: string | null }>>({});
-  const [pricingLoading, setPricingLoading] = useState<Set<string>>(new Set());
-
-  async function fetchPricing(inviteId: string, type: "cofounders" | "couples" | "friends") {
-    setPricingLoading(prev => new Set(prev).add(inviteId));
-    try {
-      const res = await fetch(`/api/invite/pricing?inviteId=${inviteId}&type=${type}`);
-      const data = await res.json();
-      if (!data.error) {
-        setPricing(prev => ({ ...prev, [inviteId]: data }));
-      }
-    } catch { /* ignore */ }
-    setPricingLoading(prev => { const s = new Set(prev); s.delete(inviteId); return s; });
-  }
-
-  function handleTypeChange(inviteId: string, type: "cofounders" | "couples" | "friends") {
-    setSelectedTypes(prev => ({ ...prev, [inviteId]: type }));
-    fetchPricing(inviteId, type);
-  }
-
-  // Fetch default pricing for joined invites on mount
+  // Fetch all three types for joined invites on mount / when invites change
   useEffect(() => {
-    for (const invite of joined) {
-      if (!pricing[invite.id]) {
-        fetchPricing(invite.id, "cofounders");
-      }
-    }
+    const joinedInvites = invites.filter(i => i.status === "accepted");
+    fetchAllPricing(joinedInvites);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invites]);
 
-  async function handlePurchaseAndCompare(inviteId: string) {
-    const type = selectedTypes[inviteId] || "cofounders";
-    const invitePricing = pricing[inviteId];
+  // Re-fetch pricing when tab regains focus
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === "visible") {
+        const joinedInvites = invites.filter(i => i.status === "accepted");
+        fetchAllPricing(joinedInvites);
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [invites, fetchAllPricing]);
 
-    if (invitePricing?.isFree) {
-      // Free — generate directly
-      handleCompare(inviteId, type);
+  async function handleSelectType(inviteId: string, type: RelationshipType) {
+    const key = pricingKey(inviteId, type);
+    const typePricing = pricing[key];
+
+    // For paid types where no one has selected yet, redirect to Stripe
+    if (typePricing && !typePricing.isFree && typePricing.selectionState === "none" && typePricing.bothAssessed) {
+      if (typePricing.productId) {
+        window.location.href = `/api/stripe/checkout?product=${typePricing.productId}&inviteId=${inviteId}&relationshipType=${type}`;
+      }
       return;
     }
 
-    if (invitePricing?.productId) {
-      // Redirect to Stripe checkout
-      window.location.href = `/api/stripe/checkout?product=${invitePricing.productId}&inviteId=${inviteId}&relationshipType=${type}`;
+    // For free types (selectionState "none") or confirming (selectionState "partner_selected"), call select-type
+    setSelectingType(key);
+    setGenerateError(null);
+    try {
+      const res = await fetch("/api/invite/select-type", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteId, relationshipType: type }),
+      });
+      const result = await res.json();
+      if (result.error) {
+        setGenerateError(result.error);
+      }
+      // Re-fetch all pricing for this invite to get updated states
+      for (const t of RELATIONSHIP_TYPES) {
+        fetchPricing(inviteId, t);
+      }
+    } catch {
+      setGenerateError("Network error. Check your connection and try again.");
     }
+    setSelectingType(null);
   }
 
   async function handleResend(inviteId: string) {
@@ -189,42 +243,119 @@ function ComparePage() {
     setActionLoading(null);
   }
 
-  const [generateError, setGenerateError] = useState<string | null>(null);
+  const pending = invites.filter(i => i.status === "pending");
+  const joined = invites.filter(i => i.status === "accepted");
 
-  async function handleCompare(inviteId: string, relationshipType?: string) {
-    setGenerating(inviteId);
-    setGenerateError(null);
-    try {
-      const res = await fetch("/api/report/compare", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inviteId, relationshipType: relationshipType || "cofounders" }),
-      });
-      const result = await res.json();
-      if (result.status === "completed" || result.status === "already_exists") {
-        window.location.reload();
-      } else if (result.status === "failed") {
-        setGenerateError("Report generation failed. This can happen if the AI service is temporarily unavailable. Please try again in a few minutes.");
-        setGenerating(null);
-      } else {
-        setGenerateError(result.error || "Something unexpected happened. Please try again.");
-        setGenerating(null);
+  // Build completed list from pricing data where selectionState === "complete"
+  const completedEntries: { invite: Invite; type: RelationshipType; reportId: string; score: number | null }[] = [];
+  for (const invite of joined) {
+    for (const type of RELATIONSHIP_TYPES) {
+      const key = pricingKey(invite.id, type);
+      const p = pricing[key];
+      if (p?.selectionState === "complete" && p.reportId) {
+        completedEntries.push({ invite, type, reportId: p.reportId, score: p.compatibilityScore });
       }
-    } catch {
-      setGenerateError("Network error. Check your connection and try again.");
-      setGenerating(null);
     }
   }
 
-  const pending = invites.filter(i => i.status === "pending");
-  const joined = invites.filter(i => i.status === "accepted" && !i.comparison_report_id);
-  const completed = invites.filter(i => i.comparison_report_id);
+  // Filter joined to only show invites that have at least one non-complete type
+  const joinedWithPending = joined.filter(invite => {
+    return RELATIONSHIP_TYPES.some(type => {
+      const key = pricingKey(invite.id, type);
+      const p = pricing[key];
+      return !p || p.selectionState !== "complete";
+    });
+  });
 
   function getDisplayName(invite: Invite): string {
     if (invite.to_user_id && profiles[invite.to_user_id]) {
       return profiles[invite.to_user_id];
     }
     return invite.to_email;
+  }
+
+  function renderTypeRow(invite: Invite, type: RelationshipType) {
+    const key = pricingKey(invite.id, type);
+    const typePricing = pricing[key];
+    const isLoading = pricingLoading.has(key);
+    const isSelecting = selectingType === key;
+    const partnerName = getDisplayName(invite).split(" ")[0];
+
+    // Don't render completed rows in the joined section
+    if (typePricing?.selectionState === "complete") return null;
+
+    const priceLabel = isLoading
+      ? "..."
+      : typePricing?.isFree
+        ? "Free"
+        : typePricing
+          ? `$${typePricing.price}`
+          : "...";
+
+    let actionElement: React.ReactNode = null;
+
+    if (isLoading) {
+      actionElement = (
+        <span className="text-xs text-[var(--muted)]">Loading...</span>
+      );
+    } else if (!typePricing) {
+      actionElement = null;
+    } else if (typePricing.selectionState === "both_selected") {
+      actionElement = (
+        <span className="flex items-center gap-2 text-xs text-[var(--muted)]">
+          <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Generating...
+        </span>
+      );
+    } else if (typePricing.selectionState === "i_selected") {
+      actionElement = (
+        <span className="text-xs text-amber-600">Waiting for {partnerName} to confirm</span>
+      );
+    } else if (typePricing.selectionState === "partner_selected") {
+      actionElement = (
+        <button
+          onClick={() => handleSelectType(invite.id, type)}
+          disabled={isSelecting}
+          className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50"
+          style={{ backgroundColor: "var(--primary)", color: "white" }}
+        >
+          {isSelecting ? "Confirming..." : "Confirm"}
+        </button>
+      );
+    } else if (typePricing.selectionState === "none" && typePricing.bothAssessed) {
+      actionElement = (
+        <button
+          onClick={() => handleSelectType(invite.id, type)}
+          disabled={isSelecting}
+          className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50"
+          style={{ backgroundColor: "var(--primary)", color: "white" }}
+        >
+          {isSelecting ? "..." : "Select"}
+        </button>
+      );
+    } else if (typePricing.selectionState === "none" && !typePricing.bothAssessed) {
+      actionElement = (
+        <span className="text-xs text-[var(--muted)]">Waiting for assessment</span>
+      );
+    }
+
+    return (
+      <div key={type} className="flex items-center justify-between py-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-[var(--foreground)]">{TYPE_LABELS[type]}</span>
+          <span className="text-xs text-[var(--muted)]"> &mdash; </span>
+          {type === "friends" && priceLabel === "Free" ? (
+            <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">Free</span>
+          ) : (
+            <span className="text-xs text-[var(--muted)]">{priceLabel}</span>
+          )}
+        </div>
+        <div>{actionElement}</div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -304,113 +435,42 @@ function ComparePage() {
         {/* Joined */}
         <section>
           <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">Joined</h2>
-          {joined.length === 0 ? (
+          {joinedWithPending.length === 0 ? (
             <div className="bg-white rounded-2xl border border-[var(--border)] px-6 py-8 text-center">
               <p className="text-sm text-[var(--muted)]">No one has joined yet. When someone accepts your invite and takes the assessment, they will appear here.</p>
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
-              {joined.map((invite) => {
-                const type = selectedTypes[invite.id] || "cofounders";
-                const invitePricing = pricing[invite.id];
-                const isLoadingPrice = pricingLoading.has(invite.id);
-
-                return (
-                  <div key={invite.id} className="px-6 py-5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm" style={{ backgroundColor: "var(--beige-dark)", color: "var(--foreground)" }}>
-                        {getDisplayName(invite).charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-medium text-[var(--foreground)]">{getDisplayName(invite)}</p>
-                        <p className="text-sm text-[var(--muted)]">Joined {new Date(invite.updated_at).toLocaleDateString()}</p>
-                      </div>
+              {joinedWithPending.map((invite) => (
+                <div key={invite.id} className="px-6 py-5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm" style={{ backgroundColor: "var(--beige-dark)", color: "var(--foreground)" }}>
+                      {getDisplayName(invite).charAt(0).toUpperCase()}
                     </div>
-
-                    {/* Relationship type selector */}
-                    <div className="mt-4 pl-14">
-                      <div className="flex gap-2 mb-3">
-                        <button
-                          onClick={() => handleTypeChange(invite.id, "cofounders")}
-                          className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                          style={{
-                            backgroundColor: type === "cofounders" ? "var(--primary)" : "transparent",
-                            color: type === "cofounders" ? "white" : "var(--muted)",
-                            border: type === "cofounders" ? "none" : "1px solid var(--border)",
-                          }}
-                        >
-                          Co-Founders
-                        </button>
-                        <button
-                          onClick={() => handleTypeChange(invite.id, "couples")}
-                          className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                          style={{
-                            backgroundColor: type === "couples" ? "var(--primary)" : "transparent",
-                            color: type === "couples" ? "white" : "var(--muted)",
-                            border: type === "couples" ? "none" : "1px solid var(--border)",
-                          }}
-                        >
-                          Couple
-                        </button>
-                        <button
-                          onClick={() => handleTypeChange(invite.id, "friends")}
-                          className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-                          style={{
-                            backgroundColor: type === "friends" ? "var(--primary)" : "transparent",
-                            color: type === "friends" ? "white" : "var(--muted)",
-                            border: type === "friends" ? "none" : "1px solid var(--border)",
-                          }}
-                        >
-                          Friends <span className="text-[10px] opacity-70">Free</span>
-                        </button>
-                      </div>
-
-                      {/* Status and action */}
-                      {isLoadingPrice ? (
-                        <p className="text-sm text-[var(--muted)] mb-3">Checking status...</p>
-                      ) : invitePricing && !invitePricing.bothAssessed ? (
-                        <p className="text-sm text-amber-600 mb-3">
-                          Waiting for {getDisplayName(invite)} to complete their assessment
-                        </p>
-                      ) : invitePricing?.isFree ? (
-                        <p className="text-sm text-green-600 font-medium mb-3">Ready to generate</p>
-                      ) : null}
-
-                      {/* Action button */}
-                      <button
-                        onClick={() => handlePurchaseAndCompare(invite.id)}
-                        disabled={generating === invite.id || isLoadingPrice || !invitePricing?.bothAssessed}
-                        className="px-5 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                          backgroundColor: generating === invite.id ? "var(--beige-dark)" : "var(--primary)",
-                          color: generating === invite.id ? "var(--muted)" : "white",
-                        }}
-                      >
-                        {generating === invite.id
-                          ? "Generating report..."
-                          : !invitePricing?.bothAssessed
-                            ? "Waiting for assessment..."
-                            : invitePricing?.isFree
-                              ? "Generate Report"
-                              : `Generate Report — $${invitePricing?.price}`
-                        }
-                      </button>
-
-                      {generateError && generating === null && (
-                        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <p className="text-sm text-red-700">{generateError}</p>
-                          <button
-                            onClick={() => { setGenerateError(null); handlePurchaseAndCompare(invite.id); }}
-                            className="mt-2 text-sm font-medium text-red-600 hover:text-red-800"
-                          >
-                            Try again
-                          </button>
-                        </div>
-                      )}
+                    <div>
+                      <p className="font-medium text-[var(--foreground)]">{getDisplayName(invite)}</p>
+                      <p className="text-sm text-[var(--muted)]">Joined {new Date(invite.updated_at).toLocaleDateString()}</p>
                     </div>
                   </div>
-                );
-              })}
+
+                  {/* Per-type rows */}
+                  <div className="mt-3 pl-14 space-y-0 divide-y divide-[var(--border)]">
+                    {RELATIONSHIP_TYPES.map(type => renderTypeRow(invite, type))}
+                  </div>
+
+                  {generateError && (
+                    <div className="mt-3 ml-14 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-700">{generateError}</p>
+                      <button
+                        onClick={() => setGenerateError(null)}
+                        className="mt-1 text-sm font-medium text-red-600 hover:text-red-800"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </section>
@@ -418,29 +478,32 @@ function ComparePage() {
         {/* Comparison Results */}
         <section>
           <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">Comparison Results</h2>
-          {completed.length === 0 ? (
+          {completedEntries.length === 0 ? (
             <div className="bg-white rounded-2xl border border-[var(--border)] px-6 py-8 text-center">
               <p className="text-sm text-[var(--muted)]">No comparisons yet. Once someone joins, select a comparison type to generate your report.</p>
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
-              {completed.map((invite) => (
-                <div key={invite.id} className="px-6 py-5 flex items-center justify-between">
+              {completedEntries.map(({ invite, type, reportId, score }) => (
+                <div key={`${invite.id}_${type}`} className="px-6 py-5 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style={{ backgroundColor: "var(--primary)" }}>
                       {getDisplayName(invite).charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-medium text-[var(--foreground)]">{getDisplayName(invite)}</p>
-                      {invite.compatibility_score != null && (
+                      <p className="font-medium text-[var(--foreground)]">
+                        {getDisplayName(invite)}
+                        <span className="ml-2 text-xs font-normal text-[var(--muted)]">{TYPE_LABELS[type]}</span>
+                      </p>
+                      {score != null && (
                         <p className="text-sm text-[var(--muted)]">
-                          Compatibility Score: <span className="font-semibold" style={{ color: "var(--primary)" }}>{invite.compatibility_score}</span>
+                          Compatibility Score: <span className="font-semibold" style={{ color: "var(--primary)" }}>{score}</span>
                         </p>
                       )}
                     </div>
                   </div>
                   <Link
-                    href={`/compare/${invite.comparison_report_id}`}
+                    href={`/compare/${reportId}`}
                     className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
                   >
                     View Report

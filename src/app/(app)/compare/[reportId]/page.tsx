@@ -66,6 +66,10 @@ const SECTION_STYLES: Record<string, { accent: string; bg: string; icon: string 
   "Perfect Pitches": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🎤" },
   "All 48 Dimensions": { accent: "#555", bg: "#F9F8F6", icon: "📋" },
   "What Now": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🎯" },
+  // Couples report sections
+  "Relationship Success": { accent: "#E91E63", bg: "#FFF0F5", icon: "💕" },
+  "Relationship Playbook": { accent: "#0066CC", bg: "#F0F7FF", icon: "📖" },
+  "Couples Compatibility": { accent: "#E91E63", bg: "#FFF0F5", icon: "💕" },
   // Friends report sections
   "Friendship Profile": { accent: "#E91E63", bg: "#FFF0F5", icon: "💜" },
   "Where You Click": { accent: "#1a7a3a", bg: "#F4FBF7", icon: "✨" },
@@ -617,6 +621,9 @@ export default function ComparisonReportPage() {
     ["pitch", "Pitches"],
     ["48 dimension", "Comparison"],
     ["what now", "What Now?"],
+    // Couples report
+    ["relationship success", "Relationship"],
+    ["relationship playbook", "Playbook"],
     // Friends report
     ["friendship profile", "Profile"],
     ["where you click", "Click"],

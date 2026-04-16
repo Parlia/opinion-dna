@@ -13,6 +13,10 @@ import {
   buildCall2UserPrompt,
   buildFriendsSystemPrompt,
   buildFriendsUserPrompt,
+  buildCouplesCall1SystemPrompt,
+  buildCouplesCall1UserPrompt,
+  buildCouplesCall2SystemPrompt,
+  buildCouplesCall2UserPrompt,
 } from "@/lib/report/comparison-prompt";
 import { sendScorecardEmail } from "@/lib/email/scorecard";
 import { rateLimit } from "@/lib/auth/rate-limit";
@@ -47,7 +51,7 @@ export async function POST(request: Request) {
   const limited = rateLimit(`compare:${user.id}`, { limit: 3, windowMs: 3600_000 });
   if (limited) return limited;
 
-  const { inviteId, relationshipType } = await request.json();
+  const { inviteId, relationshipType, selectionId } = await request.json();
   if (!inviteId) {
     return NextResponse.json({ error: "inviteId required" }, { status: 400 });
   }
@@ -72,27 +76,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authorized for this invite" }, { status: 403 });
   }
 
-  // Check purchase on the INVITER (friends comparison is free)
-  if (relType !== "friends") {
-    const { data: purchase } = await admin
-      .from("purchases")
-      .select("id")
-      .eq("user_id", invite.from_user_id)
-      .eq("status", "completed")
-      .limit(1)
-      .single();
+  // Idempotency: check comparison_selections for existing report of this type
+  const { data: selection } = await admin
+    .from("comparison_selections")
+    .select("id, report_id, confirmed_by")
+    .eq("invite_id", inviteId)
+    .eq("relationship_type", relType)
+    .single();
 
-    if (!purchase) {
-      return NextResponse.json({ error: "Purchase required (inviter)" }, { status: 403 });
-    }
-  }
-
-  // Check if comparison report already exists for this invite (idempotency)
-  if (invite.comparison_report_id) {
+  if (selection?.report_id) {
     return NextResponse.json({
-      reportId: invite.comparison_report_id,
+      reportId: selection.report_id,
       status: "already_exists",
     });
+  }
+
+  // Consent check: both must have selected/confirmed (unless legacy flow)
+  if (selection && !selection.confirmed_by) {
+    return NextResponse.json({ error: "Both partners must confirm before report generation" }, { status: 400 });
+  }
+
+  // For paid types, check that a purchase exists on the selection
+  if (relType !== "friends" && selection && !selection.id) {
+    return NextResponse.json({ error: "Purchase required" }, { status: 403 });
   }
 
   // Fetch both score sets
@@ -188,6 +194,15 @@ ${scoreTable}
 *opiniondna.com*`;
 
       await admin.from("reports").update({ content, status: "completed" }).eq("id", report.id);
+
+      // Update comparison_selections with report reference
+      if (selectionId || selection) {
+        await admin.from("comparison_selections").update({
+          report_id: report.id,
+          compatibility_score: compatibility.score,
+        }).eq("id", selectionId || selection?.id);
+      }
+      // Also update invite for backward compatibility
       await admin.from("invites").update({
         comparison_report_id: report.id,
         compatibility_score: compatibility.score,
@@ -197,18 +212,20 @@ ${scoreTable}
     }
 
     // ── Co-Founders/Couples: two-call architecture ───────────────────
+    // Select prompts based on relationship type
+    const isCouples = relType === "couples";
+    const call1SysPrompt = isCouples ? buildCouplesCall1SystemPrompt() : buildCall1SystemPrompt();
+    const call1UserPrompt = isCouples
+      ? buildCouplesCall1UserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, PARLIA_AVERAGES, compatibility)
+      : buildCall1UserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, PARLIA_AVERAGES, compatibility);
+    const call2SysPrompt = isCouples ? buildCouplesCall2SystemPrompt() : buildCall2SystemPrompt();
 
     // ── Step 3: Call 1 — Structured analysis (JSON) ───────────────────
     let call1Analysis: string;
     let call1Json: Record<string, unknown> | null = null;
 
     try {
-      const call1Raw = await streamClaude(
-        apiKey,
-        buildCall1SystemPrompt(),
-        buildCall1UserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, PARLIA_AVERAGES, compatibility)
-      );
-
+      const call1Raw = await streamClaude(apiKey, call1SysPrompt, call1UserPrompt);
       call1Json = extractJSON(call1Raw);
       call1Analysis = JSON.stringify(call1Json, null, 2);
     } catch (err) {
@@ -216,11 +233,7 @@ ${scoreTable}
 
       // Retry once
       try {
-        const retryRaw = await streamClaude(
-          apiKey,
-          buildCall1SystemPrompt(),
-          buildCall1UserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, PARLIA_AVERAGES, compatibility)
-        );
+        const retryRaw = await streamClaude(apiKey, call1SysPrompt, call1UserPrompt);
         call1Json = extractJSON(retryRaw);
         call1Analysis = JSON.stringify(call1Json, null, 2);
       } catch (retryErr) {
@@ -232,13 +245,12 @@ ${scoreTable}
 
     // ── Step 4: Call 2 — Prescriptive content (Markdown) ──────────────
     let call2Content = "";
+    const call2UserPrompt = isCouples
+      ? buildCouplesCall2UserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, call1Analysis)
+      : buildCall2UserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, call1Analysis);
 
     try {
-      call2Content = await streamClaude(
-        apiKey,
-        buildCall2SystemPrompt(),
-        buildCall2UserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, call1Analysis)
-      );
+      call2Content = await streamClaude(apiKey, call2SysPrompt, call2UserPrompt);
     } catch (err) {
       console.error("Call 2 failed:", err);
       // Report saves with Call 1 analysis only
@@ -256,11 +268,15 @@ ${scoreTable}
     const aiBlindSpots = (analysisData?.blindSpots || []) as Array<Record<string, unknown>>;
 
     // Build the full report content as Markdown
-    let content = `# Co-Founder Compatibility Report
+    const reportTitle = isCouples ? "Couples Compatibility Report" : "Co-Founder Compatibility Report";
+    const sectionTitle = isCouples ? "Relationship Success Factors" : "Co-Founder Success Factors";
+    let content = `# ${reportTitle}
 
 **${nameA} & ${nameB}**
 
-*Prepared by Opinion DNA*
+*A comparative analysis across 48 dimensions of how you think, what you value, and how your minds work.*
+
+*Prepared by Opinion DNA opiniondna.com*
 
 ---
 
@@ -274,7 +290,7 @@ ${scoreRationale}
 
 ---
 
-## Co-Founder Success Factors
+## ${sectionTitle}
 
 `;
 
@@ -367,14 +383,18 @@ ${scoreRationale}
       .update({ content, status: "completed" })
       .eq("id", report.id);
 
-    // Update invite with comparison report reference and score
-    await admin
-      .from("invites")
-      .update({
-        comparison_report_id: report.id,
+    // Update comparison_selections with report reference
+    if (selectionId || selection) {
+      await admin.from("comparison_selections").update({
+        report_id: report.id,
         compatibility_score: compatibility.score,
-      })
-      .eq("id", inviteId);
+      }).eq("id", selectionId || selection?.id);
+    }
+    // Also update invite for backward compatibility
+    await admin.from("invites").update({
+      comparison_report_id: report.id,
+      compatibility_score: compatibility.score,
+    }).eq("id", inviteId);
 
     // ── Step 7: Send scorecard emails to both partners ────────────────
     const topStrengths = alignedFactors.slice(0, 3).map(f => f.name);

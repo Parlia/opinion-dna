@@ -6,10 +6,9 @@ import { calculateComparisonPrice, type RelationshipType } from "@/lib/stripe/pr
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/invite/pricing?inviteId=X&type=cofounders|couples
+ * GET /api/invite/pricing?inviteId=X&type=cofounders|couples|friends
  *
- * Returns the price for generating a comparison report.
- * Both partners must have completed their own Personal assessment.
+ * Returns pricing AND selection state for a specific comparison type.
  */
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -24,7 +23,7 @@ export async function GET(request: Request) {
   const relationshipType = url.searchParams.get("type") as RelationshipType;
 
   if (!inviteId || !relationshipType || !["couples", "cofounders", "friends"].includes(relationshipType)) {
-    return NextResponse.json({ error: "inviteId and type (couples|cofounders|friends) required" }, { status: 400 });
+    return NextResponse.json({ error: "inviteId and type required" }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -40,7 +39,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invite not found or not accepted" }, { status: 404 });
   }
 
-  // Verify user is part of this invite
   if (invite.from_user_id !== user.id && invite.to_user_id !== user.id) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
@@ -62,11 +60,34 @@ export async function GET(request: Request) {
     relationshipType,
   );
 
+  // Get selection state for this (invite, type) pair
+  const { data: selection } = await admin
+    .from("comparison_selections")
+    .select("id, selected_by, confirmed_by, report_id, compatibility_score")
+    .eq("invite_id", inviteId)
+    .eq("relationship_type", relationshipType)
+    .single();
+
+  // Determine selection state relative to current user
+  let selectionState: "none" | "i_selected" | "partner_selected" | "both_selected" | "complete" = "none";
+  if (selection?.report_id) {
+    selectionState = "complete";
+  } else if (selection?.confirmed_by) {
+    selectionState = "both_selected";
+  } else if (selection?.selected_by === user.id) {
+    selectionState = "i_selected";
+  } else if (selection?.selected_by) {
+    selectionState = "partner_selected";
+  }
+
   return NextResponse.json({
     price: result.price,
     isFree: result.isFree,
     bothAssessed: result.bothAssessed,
     isAvailable: result.isAvailable,
     productId: result.product?.id || null,
+    selectionState,
+    reportId: selection?.report_id || null,
+    compatibilityScore: selection?.compatibility_score || null,
   });
 }
