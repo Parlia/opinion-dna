@@ -29,7 +29,7 @@ const faq = [
   {
     question: "Do we both need to pay?",
     answer:
-      "Yes — each partner purchases their own Personal Assessment ($47 each, $94 total). The comparison report is included at no extra cost once both profiles are complete.",
+      "Yes — each partner purchases their own Personal Assessment ($47 each). Once both assessments are complete, unlock the Couples Comparison Report for $49 from your dashboard.",
   },
   {
     question: "What if my partner has already taken the assessment?",
@@ -204,14 +204,15 @@ export default function CouplesPage() {
           Map your relationship across 48 dimensions
         </h2>
         <p className="mt-4 text-muted max-w-xl mx-auto">
-          Each partner takes the assessment individually. The comparison report
-          is included free once both profiles are complete.
+          Each partner takes the Personal Assessment ($47 each). Then
+          unlock the Couples Comparison Report from your dashboard. Already
+          assessed? The comparison upgrade is just $49.
         </p>
         <Link
           href="/signup"
           className="inline-flex items-center justify-center mt-8 px-10 py-4 bg-primary text-white font-bold rounded-lg text-lg hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 transition-all"
         >
-          Start My Assessment &mdash; $47 per person
+          Start My Assessment &mdash; $47
         </Link>
         <p className="mt-3 text-sm text-muted">
           One-time purchase. Lifetime access. 30-day money-back guarantee.

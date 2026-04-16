@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Cannot invite yourself" }, { status: 400 });
   }
 
-  // Require the user to have a completed purchase
+  // Check if user has a purchase (optional — invites are free, comparison is paid)
   const admin = createAdminClient();
   const { data: purchase } = await admin
     .from("purchases")
@@ -38,36 +38,18 @@ export async function POST(request: Request) {
     .limit(1)
     .single();
 
-  if (!purchase) {
-    return NextResponse.json({ error: "Purchase required" }, { status: 403 });
-  }
-
-  // Require the user to have completed their own assessment
-  const { data: scores } = await supabase
-    .from("user_scores")
-    .select("id")
-    .eq("user_id", user.id)
-    .limit(1);
-
-  if (!scores || scores.length === 0) {
-    return NextResponse.json(
-      { error: "Please complete your own assessment first." },
-      { status: 400 }
-    );
-  }
-
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("invites")
     .insert({
       from_user_id: user.id,
       to_email: email,
       token,
       type: "personal",
-      purchase_id: purchase.id,
+      purchase_id: purchase?.id || null,
       expires_at: expiresAt.toISOString(),
     });
 

@@ -1,11 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/client";
-import { PRODUCTS } from "@/lib/stripe/products";
+import { findProduct } from "@/lib/stripe/products";
 
 export async function GET(request: NextRequest) {
   const productId = request.nextUrl.searchParams.get("product") || "personal";
-  const product = PRODUCTS.find((p) => p.id === productId);
+  const inviteId = request.nextUrl.searchParams.get("inviteId") || "";
+  const relationshipType = request.nextUrl.searchParams.get("relationshipType") || "";
+  const product = findProduct(productId);
 
   if (!product || !product.priceId) {
     return NextResponse.json({ error: "Invalid product" }, { status: 400 });
@@ -46,11 +48,17 @@ export async function GET(request: NextRequest) {
     customer: customerId,
     line_items: [{ price: product.priceId, quantity: 1 }],
     mode: "payment",
-    success_url: `${request.nextUrl.origin}/dashboard?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${request.nextUrl.origin}/dashboard?purchase=cancelled`,
+    success_url: inviteId
+      ? `${request.nextUrl.origin}/compare?purchase=success&session_id={CHECKOUT_SESSION_ID}&inviteId=${inviteId}`
+      : `${request.nextUrl.origin}/dashboard?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: inviteId
+      ? `${request.nextUrl.origin}/compare?purchase=cancelled`
+      : `${request.nextUrl.origin}/dashboard?purchase=cancelled`,
     metadata: {
       user_id: user.id,
       product_type: product.type,
+      ...(inviteId && { invite_id: inviteId }),
+      ...(relationshipType && { relationship_type: relationshipType }),
     },
   });
 

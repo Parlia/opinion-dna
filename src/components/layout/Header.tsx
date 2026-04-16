@@ -5,11 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 
 const navLinks = [
-  { label: "What it is", href: "#what-it-is" },
-  { label: "How it works", href: "#how-it-works" },
-  { label: "Testimonials", href: "#testimonials" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "FAQ", href: "#faq" },
+  { label: "What it is", href: "/#what-it-is" },
+  { label: "How it works", href: "/#how-it-works" },
+  { label: "Testimonials", href: "/#testimonials" },
+  { label: "Pricing", href: "/#pricing" },
+  { label: "FAQ", href: "/#faq" },
 ];
 
 export default function Header() {
@@ -39,7 +39,7 @@ export default function Header() {
             Log in
           </Link>
           <a
-            href="#pricing"
+            href="/#pricing"
             className="text-sm font-semibold bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
           >
             Get Started
@@ -81,7 +81,7 @@ export default function Header() {
             Log in
           </Link>
           <a
-            href="#pricing"
+            href="/#pricing"
             className="block text-sm font-semibold bg-primary text-white px-4 py-2 rounded-lg text-center"
             onClick={() => setMenuOpen(false)}
           >

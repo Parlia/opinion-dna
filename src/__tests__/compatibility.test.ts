@@ -57,9 +57,9 @@ describe("computeCompatibility", () => {
     expect(moderate.score).toBeLessThanOrEqual(100);
   });
 
-  it("produces 8 factor scores", () => {
+  it("produces 9 factor scores", () => {
     const result = computeCompatibility(makeScores(50), makeScores(60));
-    expect(result.factorScores).toHaveLength(8);
+    expect(result.factorScores).toHaveLength(9);
     expect(result.factorScores[0]).toHaveProperty("name");
     expect(result.factorScores[0]).toHaveProperty("score");
     expect(result.factorScores[0]).toHaveProperty("penalty");
@@ -140,13 +140,13 @@ describe("identifyStressTendency", () => {
   it("identifies Criticism for high N + low A + low Ca", () => {
     const scores = makeScores(50, { 4: 90, 3: 20, 12: 15 });
     const tendency = identifyStressTendency(scores);
-    expect(tendency.name).toBe("Criticism");
+    expect(tendency.name).toBe("Focusing on faults");
   });
 
   it("identifies Stonewalling for high St + low E + high Ic", () => {
     const scores = makeScores(50, { 9: 90, 2: 15, 38: 85 });
     const tendency = identifyStressTendency(scores);
-    expect(tendency.name).toBe("Stonewalling");
+    expect(tendency.name).toBe("Going silent");
   });
 
   it("always returns a tendency with a counter-strategy", () => {

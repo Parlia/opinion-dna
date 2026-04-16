@@ -45,10 +45,11 @@ export async function POST(request: Request) {
   const limited = rateLimit(`compare:${user.id}`, { limit: 3, windowMs: 3600_000 });
   if (limited) return limited;
 
-  const { inviteId } = await request.json();
+  const { inviteId, relationshipType } = await request.json();
   if (!inviteId) {
     return NextResponse.json({ error: "inviteId required" }, { status: 400 });
   }
+  const relType = relationshipType || "cofounders";
 
   const admin = createAdminClient();
 
@@ -132,6 +133,7 @@ export async function POST(request: Request) {
     .insert({
       user_id: invite.from_user_id,
       type: "comparison",
+      relationship_type: relType,
       status: "generating",
       scores_snapshot: scoresFrom.scores,
       comparison_user_id: invite.to_user_id,
