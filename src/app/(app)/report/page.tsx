@@ -149,6 +149,29 @@ function parseSections(content: string) {
   return sections;
 }
 
+// Parse Part 6 element explanations into a map keyed by element code
+function parseElementExplanations(body: string): Record<string, string> {
+  const map: Record<string, string> = {};
+  // Split on bold headings like **Openness (O) — Your score: 85 (Average: 78) — VERY HIGH**
+  const parts = body.split(/\*\*[^*]+\(([A-Za-z]{1,3})\)\s*[—–-]\s*Your score[^*]*\*\*/);
+  // parts alternates: [text-before, code1, text-after-1, code2, text-after-2, ...]
+  for (let i = 1; i < parts.length; i += 2) {
+    const code = parts[i].trim();
+    const explanation = (parts[i + 1] || "").trim();
+    if (code && explanation) {
+      // Clean up: remove leading/trailing blank lines and ### sub-headings
+      const cleaned = explanation
+        .replace(/^###\s+.+\n?/gm, "")
+        .trim()
+        .split(/\n{3,}/).join("\n\n"); // collapse excessive newlines
+      // Only take up to the next dimension heading or end
+      const firstChunk = cleaned.split(/\n(?=###\s)/)[0].trim();
+      if (firstChunk) map[code] = firstChunk;
+    }
+  }
+  return map;
+}
+
 // Detect and style callout blocks (Super Powers, Watch Outs, Tips)
 function CalloutAwareMarkdown({
   content,
@@ -362,25 +385,94 @@ function MarkdownBlock({ content, accent }: { content: string; accent: string })
 }
 
 // Visual score bars for Part 1
-function ScoreBarsSection({ scores }: { scores: number[] }) {
+function ElementRow({ idx, dimKey, scores, explanations }: {
+  idx: number;
+  dimKey: "personality" | "values" | "meta-thinking";
+  scores: number[];
+  explanations: Record<string, string>;
+}) {
+  const [open, setOpen] = useState(false);
+  const el = ELEMENTS[idx];
+  const score = scores[idx];
+  const avg = PARLIA_AVERAGES[idx];
+  const level = getScoreLevel(score);
+  const color = scoreColor(dimKey, score);
+  const levelColor = LEVEL_COLORS[level] || "#888";
+  const explanation = explanations[el.code];
+
+  return (
+    <div
+      className={`px-4 py-3 ${explanation ? "cursor-pointer hover:bg-[#FAFAF8] transition-colors" : ""}`}
+      onClick={() => explanation && setOpen(!open)}
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white"
+            style={{ backgroundColor: color }}
+          >
+            {el.code}
+          </span>
+          <span className="text-sm font-medium text-[#222]">
+            {el.name}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-right">
+          {avg !== null && (
+            <span className="text-xs text-[#aaa]">avg {avg}</span>
+          )}
+          <span className="text-base font-bold text-[#222] w-8 text-right">
+            {score}
+          </span>
+          <span
+            className="text-[10px] font-bold w-16 text-right"
+            style={{ color: levelColor }}
+          >
+            {level}
+          </span>
+          {explanation && (
+            <svg
+              className={`w-3.5 h-3.5 text-[#bbb] transition-transform ${open ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          )}
+        </div>
+      </div>
+      <div className="relative h-2 bg-[#F0ECE4] rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${score}%`, backgroundColor: color }}
+        />
+        {avg !== null && (
+          <div
+            className="absolute top-0 h-full w-0.5 bg-[#222] opacity-20"
+            style={{ left: `${avg}%` }}
+          />
+        )}
+      </div>
+      {open && explanation && (
+        <div className="mt-3 bg-[#F9F8F6] border border-[#E8E4DC] rounded-lg px-4 py-3">
+          <p className="text-[13px] text-[#444] leading-relaxed">{explanation}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScoreBarsSection({ scores, explanations }: { scores: number[]; explanations: Record<string, string> }) {
   const dimensions = [
     {
       label: "Personality",
       description:
         "Your biological bedrock — deeply embedded, remarkably stable over a lifetime",
       categories: [
-        {
-          label: "The Big 5",
-          indices: [0, 1, 2, 3, 4],
-        },
-        {
-          label: "The Dark Triad",
-          indices: [5, 6, 7],
-        },
-        {
-          label: "Emotional Regulation, Mortality & Life Satisfaction",
-          indices: [8, 9, 10, 11],
-        },
+        { label: "The Big 5", indices: [0, 1, 2, 3, 4] },
+        { label: "The Dark Triad", indices: [5, 6, 7] },
+        { label: "Emotional Regulation, Mortality & Life Satisfaction", indices: [8, 9, 10, 11] },
       ],
     },
     {
@@ -390,10 +482,7 @@ function ScoreBarsSection({ scores }: { scores: number[] }) {
       categories: [
         { label: "Moral Foundations", indices: [12, 13, 14, 15, 16] },
         { label: "Cooperative Virtues", indices: [17, 18, 19, 20, 21, 22, 23] },
-        {
-          label: "Personal Values",
-          indices: [24, 25, 26, 27, 28, 29, 30, 31, 32, 33],
-        },
+        { label: "Personal Values", indices: [24, 25, 26, 27, 28, 29, 30, 31, 32, 33] },
         { label: "Social Orientation", indices: [34, 35] },
       ],
     },
@@ -402,10 +491,7 @@ function ScoreBarsSection({ scores }: { scores: number[] }) {
       description:
         "How your mind works — where it rests, what it tends toward",
       categories: [
-        {
-          label: "Meta-Thinking",
-          indices: [36, 37, 38, 39, 40, 41, 42, 43],
-        },
+        { label: "Meta-Thinking", indices: [36, 37, 38, 39, 40, 41, 42, 43] },
         { label: "Primal World Beliefs", indices: [44, 45, 46, 47] },
       ],
     },
@@ -414,7 +500,7 @@ function ScoreBarsSection({ scores }: { scores: number[] }) {
   return (
     <div className="space-y-8">
       {dimensions.map((dim) => {
-        const dimKey = dim.label.toLowerCase().replace("-", "-") as
+        const dimKey = dim.label.toLowerCase().replace(" ", "-") as
           | "personality"
           | "values"
           | "meta-thinking";
@@ -422,7 +508,6 @@ function ScoreBarsSection({ scores }: { scores: number[] }) {
           <div key={dim.label}>
             <h3 className="text-lg font-bold text-[#222] mb-1">{dim.label}</h3>
             <p className="text-sm text-[#888] mb-4">{dim.description}</p>
-
             <div className="space-y-4">
               {dim.categories.map((cat) => (
                 <div
@@ -435,66 +520,9 @@ function ScoreBarsSection({ scores }: { scores: number[] }) {
                     </span>
                   </div>
                   <div className="divide-y divide-[#F0ECE4]">
-                    {cat.indices.map((idx) => {
-                      const el = ELEMENTS[idx];
-                      const score = scores[idx];
-                      const avg = PARLIA_AVERAGES[idx];
-                      const level = getScoreLevel(score);
-                      const color = scoreColor(
-                        dimKey === "meta-thinking" ? "meta-thinking" : dimKey,
-                        score
-                      );
-                      const levelColor = LEVEL_COLORS[level] || "#888";
-
-                      return (
-                        <div key={idx} className="px-4 py-3">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <div className="flex items-center gap-2.5">
-                              <span
-                                className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white"
-                                style={{ backgroundColor: color }}
-                              >
-                                {el.code}
-                              </span>
-                              <span className="text-sm font-medium text-[#222]">
-                                {el.name}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3 text-right">
-                              {avg !== null && (
-                                <span className="text-xs text-[#aaa]">
-                                  avg {avg}
-                                </span>
-                              )}
-                              <span className="text-base font-bold text-[#222] w-8 text-right">
-                                {score}
-                              </span>
-                              <span
-                                className="text-[10px] font-bold w-16 text-right"
-                                style={{ color: levelColor }}
-                              >
-                                {level}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="relative h-2 bg-[#F0ECE4] rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full"
-                              style={{
-                                width: `${score}%`,
-                                backgroundColor: color,
-                              }}
-                            />
-                            {avg !== null && (
-                              <div
-                                className="absolute top-0 h-full w-0.5 bg-[#222] opacity-20"
-                                style={{ left: `${avg}%` }}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {cat.indices.map((idx) => (
+                      <ElementRow key={idx} idx={idx} dimKey={dimKey} scores={scores} explanations={explanations} />
+                    ))}
                   </div>
                 </div>
               ))}
@@ -1123,10 +1151,20 @@ export default function ReportPage() {
     }
   }
 
-  const sections = useMemo(() => {
+  const allSections = useMemo(() => {
     if (!state.report?.content) return [];
     return parseSections(state.report.content);
   }, [state.report?.content]);
+
+  // Extract Part 6 explanations and remove it from rendered sections
+  const elementExplanations = useMemo(() => {
+    const part6 = allSections.find(s => s.title.includes("Part 6") || s.title.includes("48 Elements"));
+    return part6 ? parseElementExplanations(part6.body) : {};
+  }, [allSections]);
+
+  const sections = useMemo(() => {
+    return allSections.filter(s => !s.title.includes("Part 6") && !s.title.includes("48 Elements"));
+  }, [allSections]);
 
   // Navigation labels
   const navItems = useMemo(() => {
@@ -1303,7 +1341,7 @@ export default function ReportPage() {
               {/* Section body */}
               <div className="px-6 sm:px-8 py-6">
                 {isPart1 && reportScores ? (
-                  <ScoreBarsSection scores={reportScores} />
+                  <ScoreBarsSection scores={reportScores} explanations={elementExplanations} />
                 ) : (
                   <CalloutAwareMarkdown
                     content={section.body}
