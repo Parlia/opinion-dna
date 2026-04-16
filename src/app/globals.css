@@ -51,6 +51,15 @@ h1, h2, h3, h4 {
   font-family: var(--font-display), Georgia, serif;
 }
 
+/* Hide scrollbar but keep scrolling */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Report generation loading animations */
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
