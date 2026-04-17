@@ -68,7 +68,21 @@ const SECTION_STYLES: Record<string, { accent: string; bg: string; icon: string 
   "All 48 Dimensions": { accent: "#555", bg: "#F9F8F6", icon: "📋" },
   "What Now": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🎯" },
   "What Comes Next": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🎯" },
-  // Couples report sections
+  // Couples report sections (v2 brief-based)
+  "Chemistry Signature": { accent: "#E91E63", bg: "#FFF0F5", icon: "✨" },
+  "Where You Overlap": { accent: "#1a7a3a", bg: "#F4FBF7", icon: "🤝" },
+  "Where You Diverge": { accent: "#B8860B", bg: "#FFF9EE", icon: "🔀" },
+  "Process the World": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🧠" },
+  "Value Differently": { accent: "#0066CC", bg: "#F0F7FF", icon: "💎" },
+  "Handle Emotion": { accent: "#E91E63", bg: "#FFF0F5", icon: "💗" },
+  "A Note to Each of You": { accent: "#9B4DFF", bg: "#FAF5FF", icon: "💌" },
+  "Where the Friction Lives": { accent: "#E67E22", bg: "#FFF8F0", icon: "🔥" },
+  "Conflict and Repair": { accent: "#0066CC", bg: "#F0F7FF", icon: "🛠️" },
+  "Big Decisions Compass": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🧭" },
+  "Growth Edges": { accent: "#1a7a3a", bg: "#F4FBF7", icon: "🌱" },
+  "Conversation Prompts": { accent: "#00A86B", bg: "#F4FBF7", icon: "💬" },
+  "Methodology and Sources": { accent: "#555", bg: "#F9F8F6", icon: "📚" },
+  // Couples report sections (legacy — kept for backward compat)
   "Relationship Success": { accent: "#E91E63", bg: "#FFF0F5", icon: "💕" },
   "Relationship Playbook": { accent: "#0066CC", bg: "#F0F7FF", icon: "📖" },
   "Couples Compatibility": { accent: "#E91E63", bg: "#FFF0F5", icon: "💕" },
@@ -610,21 +624,36 @@ export default function ComparisonReportPage() {
   const nameB = nameMatch ? nameMatch[2] : "Partner B";
 
   // Navigation items from sections with titles — substring match for AI-varied headings
+  // Order matters: more specific matches should come first
   const sectionShortLabels: [string, string][] = [
     ["how to read", "How to Read"],
+    // Couples report (v2 brief-based) — put before generic matches
+    ["chemistry signature", "Chemistry"],
+    ["where you overlap", "Overlap"],
+    ["where you diverge", "Diverge"],
+    ["process the world", "Thinking"],
+    ["value differently", "Values"],
+    ["handle emotion", "Emotion"],
+    ["a note to each of you", "Notes"],
+    ["where the friction lives", "Friction"],
+    ["conflict and repair", "Repair"],
+    ["big decisions compass", "Decisions"],
+    ["growth edges", "Growth"],
+    ["conversation prompts", "Prompts"],
+    ["methodology and sources", "Sources"],
+    // Co-founders
     ["compatibility score", "Compatibility"],
     ["know about", "Your Co-Founder"],
     ["success factor", "Success"],
     ["success", "Success"],
     ["co-founder", "Co-Founder"],
     ["under pressure", "Pressure"],
-    ["conversation", "Conversations"],
     ["mitigation", "Mitigations"],
     ["pitch", "Pitches"],
     ["48 dimension", "Comparison"],
     ["what now", "What Now?"],
     ["what comes next", "What Next?"],
-    // Couples report
+    // Couples report (legacy)
     ["relationship success", "Relationship"],
     ["relationship playbook", "Playbook"],
     // Friends report
@@ -632,6 +661,7 @@ export default function ComparisonReportPage() {
     ["where you click", "Click"],
     ["butt heads", "Friction"],
     ["conversation starter", "Starters"],
+    ["conversation", "Conversations"],
     ["friend you need", "The Friend"],
   ];
   function getShortLabel(title: string): string {

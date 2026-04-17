@@ -259,6 +259,36 @@ ${scoreTable}
     // ── Step 5: Assemble report ───────────────────────────────────────
     const scoreTable = buildComparisonScoreTable(scoresFrom.scores, scoresTo.scores, nameA, nameB);
 
+    // ── Couples assembly: brief-based 12-section structure ────────────
+    if (isCouples) {
+      const couplesContent = assembleCouplesReport({
+        nameA,
+        nameB,
+        call1Json: call1Json as Record<string, unknown> | null,
+        call2Content,
+        scoreTable,
+      });
+
+      await admin
+        .from("reports")
+        .update({ content: couplesContent, status: "completed" })
+        .eq("id", report.id);
+
+      if (selectionId || selection) {
+        await admin.from("comparison_selections").update({
+          report_id: report.id,
+          compatibility_score: compatibility.score,
+        }).eq("id", selectionId || selection?.id);
+      }
+      await admin.from("invites").update({
+        comparison_report_id: report.id,
+        compatibility_score: compatibility.score,
+      }).eq("id", inviteId);
+
+      return NextResponse.json({ reportId: report.id, status: "completed", score: compatibility.score });
+    }
+
+    // ── Co-Founders assembly ──────────────────────────────────────────
     // Extract structured data for rendering
     const analysisData = call1Json as Record<string, unknown> | null;
     const successFactors = (analysisData?.successFactors || []) as Array<Record<string, unknown>>;
@@ -268,8 +298,8 @@ ${scoreTable}
     const aiBlindSpots = (analysisData?.blindSpots || []) as Array<Record<string, unknown>>;
 
     // Build the full report content as Markdown
-    const reportTitle = isCouples ? "Couples Compatibility Report" : "Co-Founder Compatibility Report";
-    const sectionTitle = isCouples ? "Relationship Success Factors" : "Co-Founder Success Factors";
+    const reportTitle = "Co-Founder Compatibility Report";
+    const sectionTitle = "Co-Founder Success Factors";
     let content = `# ${reportTitle}
 
 **${nameA} & ${nameB}**
@@ -438,6 +468,127 @@ ${scoreRationale}
 
     return NextResponse.json({ reportId: report.id, status: "failed" }, { status: 500 });
   }
+}
+
+/**
+ * Assemble the couples comparison report from Call 1 JSON + Call 2 markdown.
+ * Follows the brief's 12-section structure. No compatibility score display.
+ */
+function assembleCouplesReport(params: {
+  nameA: string;
+  nameB: string;
+  call1Json: Record<string, unknown> | null;
+  call2Content: string;
+  scoreTable: string;
+}): string {
+  const { nameA, nameB, call1Json, call2Content, scoreTable } = params;
+
+  type Item = { element?: string; dimension?: string; meaning?: string; framing?: string; dailyLife?: string; showsUpAs?: string };
+
+  const chemistry = (call1Json?.chemistrySignature || {}) as { portrait?: string; headlineTraits?: string[] };
+  const overlap = (call1Json?.overlap || {}) as { narrative?: string; items?: Item[] };
+  const divergence = (call1Json?.divergence || {}) as { narrative?: string; items?: Item[] };
+  const metaThinking = (call1Json?.metaThinking || {}) as { narrative?: string; biggestGaps?: Item[] };
+  const values = (call1Json?.values || {}) as { narrative?: string; specialFlags?: string[] };
+  const emotion = (call1Json?.emotion || {}) as { pattern?: string; narrative?: string; flags?: string[] };
+  const partnerBriefs = (call1Json?.partnerBriefs || {}) as { A?: string; B?: string };
+
+  let content = `# Couples Compatibility Report
+
+**${nameA} & ${nameB}**
+
+*A structured mirror for two minds. A comparative look across 48 dimensions of how you think, what you value, and how your minds work.*
+
+*Prepared by Opinion DNA opiniondna.com*
+
+---
+
+## How to Read This Report
+
+This report compares two Opinion DNA profiles across 48 dimensions grouped into three areas: Personality, Values, and Meta-Thinking.
+
+The report names patterns suggested by your two profiles. It doesn't rank your relationship, score your compatibility, or tell you whether you should stay together. It's a structured mirror, not a verdict.
+
+Throughout you'll find hedged language ("may", "suggests", "tends to"). That's deliberate. These are patterns, not facts about who either of you are. If something doesn't fit, trust your own read of yourself.
+
+Research grounding: Gottman Institute's 40-year couples studies, Sue Johnson's Emotionally Focused Therapy, adult attachment theory, Deci and Ryan's Self-Determination Theory, Orbuch's 26-year longitudinal study, and related work.
+
+---
+
+## Your Chemistry Signature
+
+${chemistry.portrait || ""}
+
+`;
+
+  if (Array.isArray(chemistry.headlineTraits) && chemistry.headlineTraits.length > 0) {
+    content += `**Headline traits**\n\n`;
+    for (const trait of chemistry.headlineTraits) {
+      content += `- ${trait}\n`;
+    }
+    content += `\n`;
+  }
+
+  content += `---\n\n## Where You Overlap\n\n${overlap.narrative || ""}\n\n`;
+  if (Array.isArray(overlap.items) && overlap.items.length > 0) {
+    for (const item of overlap.items) {
+      if (item.element) content += `### ${item.element}\n\n${item.meaning || ""}\n\n`;
+    }
+  }
+
+  content += `---\n\n## Where You Diverge\n\n${divergence.narrative || ""}\n\n`;
+  if (Array.isArray(divergence.items) && divergence.items.length > 0) {
+    for (const item of divergence.items) {
+      if (!item.element) continue;
+      const framingLabel = item.framing === "complementary" ? "Complementary"
+        : item.framing === "friction" ? "Worth noticing"
+        : item.framing === "both" ? "Complementary and worth noticing"
+        : "";
+      content += `### ${item.element}\n\n`;
+      if (framingLabel) content += `*${framingLabel}*\n\n`;
+      if (item.dailyLife) content += `**In daily life:** ${item.dailyLife}\n\n`;
+      if (item.meaning) content += `${item.meaning}\n\n`;
+    }
+  }
+
+  content += `---\n\n## How You Process the World Together\n\n${metaThinking.narrative || ""}\n\n`;
+  if (Array.isArray(metaThinking.biggestGaps) && metaThinking.biggestGaps.length > 0) {
+    content += `**Biggest meta-thinking gaps**\n\n`;
+    for (const gap of metaThinking.biggestGaps) {
+      if (gap.element) content += `- **${gap.element}** — ${gap.showsUpAs || ""}\n`;
+    }
+    content += `\n`;
+  }
+
+  content += `---\n\n## How You Value Differently (and Alike)\n\n${values.narrative || ""}\n\n`;
+
+  content += `---\n\n## How You Handle Emotion Together\n\n${emotion.narrative || ""}\n\n`;
+
+  // Partner briefs (optional, from brief: "How each of you connects in a partnership")
+  if (partnerBriefs.A || partnerBriefs.B) {
+    content += `---\n\n## A Note to Each of You\n\n`;
+    if (partnerBriefs.A) content += `### ${nameA}\n\n${partnerBriefs.A}\n\n`;
+    if (partnerBriefs.B) content += `### ${nameB}\n\n${partnerBriefs.B}\n\n`;
+  }
+
+  // Call 2 content: sections 7-11 as markdown
+  if (call2Content) {
+    content += `---\n\n${call2Content}\n`;
+  }
+
+  // Section 12: Methodology and Sources
+  content += `\n---\n\n## Methodology and Sources\n\nThis report is grounded in six bodies of research:\n\n- **Gottman Institute** — 40+ years of longitudinal couples research. The Four Horsemen (criticism, contempt, defensiveness, stonewalling), the 5-to-1 positive-to-negative ratio in conflict, bids for connection, the 20-minute physiological break.\n- **Sue Johnson, Emotionally Focused Therapy** — adult attachment bonds, demand-withdraw cycles, the A.R.E. framework (Accessible, Responsive, Engaged).\n- **Adult Attachment Theory** (Bowlby, Ainsworth, Hazan and Shaver, Levine and Heller) — secure, anxious, avoidant, and disorganized styles. Earned security.\n- **Self-Determination Theory** (Deci and Ryan) — autonomy, competence, and relatedness as the foundations of thriving.\n- **Terri Orbuch's 26-year Early Years of Marriage study** — affective affirmation as the strongest predictor of long-term satisfaction.\n- **Divorce longitudinal research** (Amato, Wilcox, Stanley and Rhoades, Hawkins) — the most-cited reasons relationships end, and the "sliding versus deciding" effect.\n- **Positive Psychology** (Seligman, Fredrickson, Gable) — capitalization (how partners respond to good news) and shared meaning as resilience factors.\n\nThe Opinion DNA assessment itself was designed in consultation with academic psychologists and behavioral scientists from Royal Holloway, Oxford, Cambridge, University of Pennsylvania, City University, and NYU.\n\n**What this report does:** it names patterns suggested by two psychometric profiles and offers concrete practices to work with those patterns. It's a structured mirror.\n\n**What this report does not do:** it does not diagnose, score the relationship, predict outcomes, or tell you whether you should stay together. The reader always has agency over the interpretation.\n\n`;
+
+  // 48 Dimensions comparison
+  content += `---\n\n## All 48 Dimensions Compared\n\n${scoreTable}\n\n`;
+
+  content += `---\n\n*opiniondna.com*`;
+
+  // Post-process: fix missing space after bold/italic labels
+  content = content.replace(/\*\*([^*]+):\*\*([^\s\n])/g, "**$1:** $2");
+  content = content.replace(/\*([^*]+):\*([^\s\n*])/g, "*$1:* $2");
+
+  return content;
 }
 
 /**

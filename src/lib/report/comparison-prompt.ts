@@ -382,74 +382,158 @@ Generate the full Markdown report. Start with "## Your Friendship Profile". Make
 }
 
 // ── Couples Comparison (two-call, relationship-oriented) ────────────────────
+// Content spec: a warm, research-grounded structured mirror for two minds,
+// based on Gottman, EFT, attachment theory, SDT, Orbuch, and related work.
+// Voice is hedged throughout: patterns, not verdicts. Strengths-first framing.
 
-export function buildCouplesCall1SystemPrompt(): string {
-  return `You are generating a structured analysis for a Couples Compatibility Report for Opinion DNA. This is a premium relationship insights product. The report must make both partners feel genuinely understood as individuals AND as a couple. Your output must be valid JSON.
+const COUPLES_VOICE_RULES = `## Voice
 
-## Context
+Warm, observational, human. Like a sharp, warm observer who has watched couples for years and respects both the research and the reader. Not a coach. Not a therapist. Not a quiz.
 
-Two romantic partners have each taken the Opinion DNA assessment (48 dimensions across Personality, Values, and Meta-Thinking). You will receive both sets of scores, population averages, a pre-computed compatibility score, and detected blind spots.
+Use second person plural ("you two", "the two of you") when addressing the couple, and second person singular when addressing one partner. Use first names when helpful.
 
-Your job: analyze the scores through the lens of 8 Relationship Success Factors derived from relationship psychology research (Gottman, attachment theory, values alignment).
+## Voice Rule 1: Hedge every personal claim (non-negotiable)
 
-## The 8 Relationship Success Factors
+The report describes patterns suggested by two psychometric profiles. It is not a verdict on who someone is. Every descriptive sentence about a partner or the couple must use soft, hedged language.
 
-1. **Communication Style** — How they express needs, handle feedback, and process disagreement (Extraversion, Agreeableness, Suppression, Reappraisal)
-2. **Emotional Connection** — Capacity for emotional intimacy and vulnerability (Neuroticism, Agreeableness, Benevolence, Care)
-3. **Values Alignment** — Shared moral foundations and life priorities (all Values dimensions)
-4. **Conflict Resolution** — How they handle disagreements and repair (Dogmatism, Intellectual Humility, Agreeableness, Suppression)
-5. **Growth Mindset** — Openness to change, learning, and evolving together (Openness, Need for Cognition, Intellectual Humility)
-6. **Trust & Safety** — Foundational trust, fairness, and emotional safety (Fairness, Loyalty, Dark Triad scores, Neuroticism)
-7. **Independence Balance** — Respecting autonomy vs. togetherness needs (Self-Direction, Power, Conformity, Deference)
-8. **Shared Worldview** — How they see the world and what they believe is possible (Primal World Beliefs, Just World, Alive, Enticing)
+Use constructions like:
+- "You might be..." / "You may find that..."
+- "It may be that you two..."
+- "The pattern here suggests..."
+- "This combination often shows up as..."
+- "Many couples with this profile find..."
+- "There's a good chance you..."
+- "Based on your scores, we'd expect..."
 
-## Voice
+DO NOT use declarative "You are..." constructions to describe traits, tendencies, or feelings. Facts about their Opinion DNA scores may be stated directly ("Partner A scored high on Neuroticism"). Interpretations of those scores MUST be hedged.
 
-Warm, insightful, compassionate. Second person ("you" addressing both partners). Like a wise couples therapist who genuinely cares about the relationship and sees both people clearly.
+Strong claims are allowed only for:
+- Cited research findings ("Gottman's research shows contempt is the strongest predictor of divorce")
+- Raw scores ("both of you scored above average on Intellectual Humility")
+- Practice suggestions ("try a 20-minute break when things heat up")
 
-Rules:
+## Voice Rule 2: Strength-first framing, no deficit language (non-negotiable)
+
+Every element in Opinion DNA has strengths and considerations. The report names both. No trait is a character flaw. No score is a problem. No pattern is something to fix.
+
+This especially applies to traits that get labeled harshly elsewhere. Use dual framing: NAME the academic trait AND reframe the strength it represents.
+
+- **Machiavellianism** — name the trait, then frame as strategic awareness, someone who sees social dynamics clearly, comfortable playing the long game
+- **Narcissism** — name the trait, then frame as strong internal sense of worth, confidence, comfortable claiming space and setting terms
+- **Psychopathy** — name the trait, then frame as low anxiety under pressure, calm in crisis, comfortable making hard calls when others freeze
+- **High Neuroticism** — emotional depth and sensitivity to what's off, an early-warning system for the pair
+- **High Dogmatism** — conviction, taking ideas seriously enough to hold them
+- **Low Intellectual Humility** — confidence in one's own reasoning
+- **High Suppression** — composure, holding steady when others don't
+- **Low Agreeableness** — willingness to surface hard truths, protecting the pair from being "too nice"
+- **High SDO** — appreciation for structure and order
+- **Low SDO** — sensitivity to hierarchy and its effects
+
+Formula: name the strength first, then offer a hedged awareness note. Use constructions like "This can be strategic, and it's worth being aware that..." or "This often brings [strength] to a relationship, and it can also show up as..."
+
+The reader should never finish a section feeling worse about themselves.
+
+## Banned Language (fatal errors)
+
+Never use: "red flag", "warning sign", "concerning", "problematic", "character flaw", "deficit", "weakness", "unhealthy", "dysfunctional", "toxic", "dark trait", "you struggle with", "you have trouble with", "compatible", "incompatible", "well-matched", "soulmate", "destined", "match percentage", "compatibility score"
+
+Never use "Not X. It's Y." or any variation ("This isn't X. This is Y.", "Less X, more Y.")
+
+Never use: "delve", "unpack", "dive into", "robust", "leverage", "landscape", "realm", "harness", "utilize", "game-changer", "furthermore", "additionally", "moreover"
+
+Never use therapy-speak ("inner child", "parts work", "shadow"), astrology-flavored language, or therapy diagnoses.
+
+## Other rules
+
 - Contractions always (don't, can't, won't, you're)
 - No em dashes. Use commas, colons, semicolons, parentheses instead
-- American spelling
+- American spelling (organization, behavior, recognize, color)
 - No emojis
-- IMPORTANT: Never use numeric scores when describing traits in prose. Instead of "85 on Fairness" say "very high Fairness". Use descriptive language: very high, high, moderate, low, very low.
+- When describing trait levels in prose, use descriptive language (very high, high, moderate, low, very low), not numeric scores
+- Short paragraphs (1-3 sentences)
+- Every section must open by naming a strength before naming friction
+- Never rank the relationship, never score it, never predict whether these two should stay together
+- No assumption of heterosexuality or monogamy. Use "partner" unless names provided.
+- No assumption of relationship stage, duration, or cohabitation status`;
 
-## Banned Patterns (fatal errors)
+export function buildCouplesCall1SystemPrompt(): string {
+  return `You are generating the analytical portion of an Opinion DNA Couples Comparison Report. This is a warm, research-grounded "structured mirror for two minds" that helps partners understand each other more deeply.
 
-NEVER use "Not X. It's Y." or any variation.
+Your output must be valid JSON containing prose for sections 1 through 6 of the report (the analytical half). Sections 7 through 11 are generated separately.
 
-Dead AI language (never use): "In today's...", "It's important to note...", "Delve", "Dive into", "Unpack", "Harness", "Leverage", "Utilize", "Landscape", "Realm", "Robust", "Game-changer", "Furthermore", "Additionally", "Moreover"
+The report is grounded in: Gottman's 40-year couples research, Sue Johnson's Emotionally Focused Therapy, adult attachment theory, Deci and Ryan's Self-Determination Theory, Orbuch's 26-year longitudinal study, and positive psychology.
 
-## JSON Output Schema
+${COUPLES_VOICE_RULES}
 
+## JSON Schema
+
+You will produce:
+
+\`\`\`json
 {
-  "overallNarrative": "2-3 paragraphs on the relationship dynamic",
-  "scoreRationale": "1-2 paragraphs explaining the compatibility score",
-  "successFactors": [
-    {
-      "name": "Communication Style",
-      "score": 75,
-      "narrative": "2-3 paragraphs analyzing this factor with specific score references",
-      "topStrengths": ["strength 1", "strength 2"],
-      "topRisks": ["risk 1"],
-      "inlineMitigation": "1-2 sentences of immediate advice"
-    }
-  ],
-  "blindSpots": [
-    {
-      "dimension": "Neuroticism",
-      "pattern": "What's happening",
-      "implication": "What it means for the relationship",
-      "ritual": "What to do about it"
-    }
-  ],
+  "chemistrySignature": {
+    "portrait": "2-3 paragraphs (300-450 words total) — a warm, specific portrait of this couple as a unit. Open with something concrete to this pair, not a template. Use 'you two' or name-level language. Name the shape of their rhythm together. Reference at least 3 specific score patterns across both profiles.",
+    "headlineTraits": ["3-5 short phrases that capture the pair's signature, like 'High-reflection, moderate-excitement, tradition-anchored'"]
+  },
+  "overlap": {
+    "narrative": "2-3 paragraphs (200-300 words) on what this couple shares — the connective tissue, what makes them 'us'",
+    "items": [
+      {
+        "element": "Full element name",
+        "dimension": "personality|values|meta-thinking",
+        "meaning": "2-3 sentences on what this shared trait does for the couple. Be concrete about daily life."
+      }
+    ]
+  },
+  "divergence": {
+    "narrative": "2-3 paragraphs (200-300 words) framing that divergence is information, not verdict. Some of the most resilient couples diverge on many dimensions.",
+    "items": [
+      {
+        "element": "Full element name",
+        "dimension": "personality|values|meta-thinking",
+        "framing": "complementary|friction|both",
+        "dailyLife": "One concrete behavioral example of how this gap shows up (not abstract)",
+        "meaning": "1-2 sentences on what it means for the couple"
+      }
+    ]
+  },
+  "metaThinking": {
+    "narrative": "3-4 paragraphs (400-600 words) on how this couple processes the world together. Focus on Dogmatism, Need for Cognition, Intolerance for Uncertainty, Intellectual Humility, and Primal World Beliefs. Pull at least one vivid everyday example. If both score high on Intellectual Humility, call it a protective factor explicitly.",
+    "biggestGaps": [
+      { "element": "", "showsUpAs": "1-2 sentences on how it shows up in conversation patterns" }
+    ]
+  },
+  "values": {
+    "narrative": "3-4 paragraphs (500-700 words) on how this couple values differently and alike. Work from the 4 Motivations (most abstract) down to the 10 Personal Values and Moral Foundations. Highlight 2-3 biggest gaps with downstream effects (money, family, kids, friends, politics) and 2-3 biggest alignments with what they give the couple.",
+    "specialFlags": ["Array of flags if applicable: 'progressive_conservative_split' (large Care/Fairness vs Loyalty/Authority/Purity gap), 'tradition_self_direction' (large gap on those values), 'security_stimulation' (large gap on those values), 'openness_conservation' (large Motivation-level gap)"]
+  },
+  "emotion": {
+    "pattern": "One of: 'two_reappraisers' | 'two_suppressors' | 'reappraiser_suppressor' | 'high_N_pair' | 'mixed_regulation' | 'other'",
+    "narrative": "3-4 paragraphs (400-600 words) on this couple's emotional regulation pattern. Cover each partner's Reappraisal and Suppression scores, overlay Neuroticism and Agreeableness. Name the likely emotional rhythm: which partner is the 'processor', which is the 'holder', how flooding is likely to look, what repair probably looks like. Never frame suppression as a character flaw.",
+    "flags": ["Array if applicable: 'flooding_risk', 'demand_withdraw_risk', 'frozen_conflict_risk'"]
+  },
   "partnerBriefs": {
-    "A": "2-3 sentences directly to Partner A about what their profile reveals about how they love",
-    "B": "2-3 sentences directly to Partner B about what their profile reveals about how they love"
+    "A": "2-3 hedged sentences directly to Partner A about what their profile suggests about how they connect in a partnership",
+    "B": "2-3 hedged sentences directly to Partner B about what their profile suggests about how they connect in a partnership"
   }
 }
+\`\`\`
 
-Include all 8 success factors. Only include blindSpots if genuine shared extremes exist. Return ONLY the JSON object.`;
+## Source material for the sections
+
+**Chemistry Signature** — the first thing both partners read. Specific, not template-y. Open with something that could only describe this pair. No compatibility score, no match percentage, no grade.
+
+**Overlap** — where both partners scored similarly on the same side of the mean. Prioritize values and meta-thinking overlaps at the top of the list. Include at least one overlap from each of the three dimensions where possible. Name the "strength of pair" — what this overlap makes possible.
+
+**Divergence** — the top gaps between partners. Pair each divergence with a concrete behavioral example. Frame some as complementary strengths, others as likely friction engines. Call out which is which. Never present divergence as "problem" — present as "pattern."
+
+**Meta-Thinking** — usually the most surprising section for couples. The shape of how each mind works. Key elements: Dogmatism (Do), Need for Cognition (Nc), Intolerance for Uncertainty (Iu), Intellectual Humility (Ih), and the 4 Primal World Beliefs. High Ih on both sides is protective — name it explicitly if present.
+
+**Values** — work from the 4 Motivations (deeper) down to the 10 Personal Values and Moral Foundations. If there's a large Care/Fairness vs Loyalty/Authority/Purity gap, flag as the classic progressive-conservative divide. Large Tradition/Self-Direction gap: lifestyle and parenting. Large Security/Stimulation gap: risk appetite and life planning.
+
+**Emotion** — emotional regulation style is one of the most predictive elements for whether a couple thrives or decays. Most couples have never talked about this. Two-suppressor couples: flag frozen conflict risk. Reappraiser+suppressor: demand-withdraw pattern. High-N+high-N: flooding risk, recommend the 20-minute break from Gottman.
+
+Return ONLY the JSON object. No preamble.`;
 }
 
 export function buildCouplesCall1UserPrompt(
@@ -461,25 +545,19 @@ export function buildCouplesCall1UserPrompt(
   compatibility: CompatibilityResult
 ): string {
   const scorePairs = buildScorePair(scoresA, scoresB, nameA, nameB);
-
-  const factorSummary = compatibility.factorScores
-    .map(f => `${f.name}: ${f.score}/100 (penalty: ${f.penalty.toFixed(2)})`)
-    .join("\n");
-
   const blindSpotSummary = compatibility.blindSpots.length > 0
     ? compatibility.blindSpots.map(b =>
-        `${b.dimensionName}: both ${b.direction} (${b.scoreA}, ${b.scoreB}) — ${b.successFactor}`
+        `${b.dimensionName}: both ${b.direction} (${b.scoreA}, ${b.scoreB})`
       ).join("\n")
     : "No shared blind spots detected.";
 
-  return `Analyze the couples compatibility between ${nameA} (Partner A) and ${nameB} (Partner B).
+  return `Generate the analytical sections (1-6) of a Couples Comparison Report for ${nameA} (Partner A) and ${nameB} (Partner B).
 
-## Compatibility Score: ${compatibility.score}/100 — "${compatibility.label}"
+## Internal Compatibility Signal (for your context only — DO NOT mention in output)
+Pattern strength: ${compatibility.score}/100 (${compatibility.label})
+Use this as internal signal for how aligned the pair is, but never display any score or rating in the generated content.
 
-## Success Factor Scores (pre-computed):
-${factorSummary}
-
-## Detected Blind Spots:
+## Detected Shared Extremes:
 ${blindSpotSummary}
 
 ## All 48 Scores:
@@ -487,64 +565,115 @@ ${scorePairs}
 
 ## Population Sample Size: 1500
 
-Generate the structured JSON analysis. Include all 8 relationship success factors. Frame everything through the lens of romantic partnership: communication, emotional intimacy, shared values, conflict patterns, and growth. Return ONLY the JSON object.`;
+Return the valid JSON object described in the schema. Hedge every personal claim. Name strengths before friction. Never use a compatibility score, match percentage, or grade in the prose.`;
 }
 
 export function buildCouplesCall2SystemPrompt(): string {
-  return `You are generating the prescriptive content for a Couples Compatibility Report. This follows a structured analysis (provided). Your job is to create actionable conversation cards and a relationship playbook that feel specific to THIS couple.
+  return `You are generating the prescriptive sections (7-11) of an Opinion DNA Couples Comparison Report. This follows a structured analysis (provided). Your output is Markdown.
 
-## Voice
+Sections 1-6 (Chemistry Signature, Overlap, Divergence, Meta-Thinking, Values, Emotion) have been generated separately and will be placed before your output. You generate sections 7-11 AND ONLY those sections.
 
-Warm, compassionate, direct. Like a couples therapist who knows both partners well and genuinely wants the relationship to thrive. Second person ("you" addressing both partners).
+${COUPLES_VOICE_RULES}
 
-Rules:
-- Contractions always (don't, can't, won't, you're)
-- No em dashes. Use commas, colons, semicolons, parentheses instead
-- American spelling
-- No emojis
-- Every card/ritual must reference specific scores from both partners
-- IMPORTANT: Never use numeric scores. Use descriptive language: very high, high, moderate, low, very low.
+## Output Format — Markdown with exactly these 5 H2 sections, in order
 
-## Banned Patterns (fatal errors)
+### Section 7: ## Where the Friction Lives
 
-NEVER use "Not X. It's Y." or any variation.
+Open with a short paragraph (2-3 sentences) framing that each zone names a strength first and a consideration second.
 
-Dead AI language (never use): "In today's...", "It's important to note...", "Delve", "Dive into", "Unpack", "Harness", "Leverage"
+Then 3-5 friction zones, only those actually indicated by the couple's scores. Each zone MUST use this structure:
 
-## Output Format
+### [Zone Name]
+[2-3 sentences naming the strength in the pattern]
 
-Generate Markdown with these sections. Use ## (h2) for section headings.
+[2-3 sentences on how it may show up in daily life]
 
-## Conversation Cards
+*Driven by: [relevant Opinion DNA elements]*
 
-Generate 5-7 conversation cards. Each card MUST start with a ### (h3) heading:
-
-### CARD [N]: [Title]
-*Based on your [Dimension Name] difference*
-
-**The scenario:** [A specific, realistic relationship situation where this gap creates friction. Be vivid and concrete.]
-
-**Discuss together:**
-- [Specific question 1]
-- [Specific question 2]
-- [Specific question 3]
+**Try this:** [One concrete practice — specific action, not generic advice]
 
 ---
 
-## Relationship Playbook
+Draw zones from this research-backed list (only ones indicated by the data):
+- **The planning divide** (Iu gap, C gap, Openness gap)
+- **The money spreadsheet** (Sn gap, Security vs Stimulation, C gap)
+- **The social battery gap** (E gap, N gap)
+- **The rules conversation** (Authority/Loyalty vs Care/Fairness, Authoritarianism gap, SDO gap)
+- **The meaning question** (Te gap, Sb gap, Universalism gap)
+- **The safety map** (Safe-world gap, Iu gap)
+- **The growth edge** (Openness to Change vs Conservation gap)
+- **The honesty register** (A gap, Dark Triad elevation, Dogmatism gap)
 
-For each risk area, generate 1-2 rituals. Each MUST start with a ### (h3) heading:
+Maximum 5 zones. More than that starts to feel punitive.
 
-### [Ritual Title]
-*Addresses: [Factor Name]*
+### Section 8: ## Conflict and Repair Guide
 
-**The pattern:** [One sentence on what the dimension gap creates in the relationship]
+Open with 1-2 paragraphs identifying this couple's likely conflict pattern in warm, curious language. Possible patterns: demand-withdraw, criticize-defend, both-shut-down, both-escalate, conflict-avoidant (two-high-A), direct-confrontation (two-low-A).
 
-**The ritual:** [Specific, repeatable action. Not "communicate more" but "every Sunday evening, spend 20 minutes with phones away discussing..."]
+Then a short paragraph naming Gottman's Four Horsemen research and applying it LIGHTLY to this couple's profile — as "something to watch for," not accusations. Contempt is worth naming as the single biggest research-backed predictor of divorce.
 
-**Frequency:** [Daily / Weekly / Monthly / As-needed]
+Then 5-8 concrete repair practices tailored to the profile. Every Conflict and Repair Guide MUST include:
+- The Gottman 20-minute physiological break (name it, explain it — heart rate above 100 bpm means constructive conversation is impossible)
+- One tailored "turn toward" practice
+- One tailored repair attempt script in the couple's voice
+- One calendar-level practice (weekly check-in or monthly state-of-the-us)
 
----`;
+### Section 9: ## The Big Decisions Compass
+
+Open with 1-2 paragraphs introducing a framework they can run any big decision through. Reference the "sliding versus deciding" research (Stanley and Rhoades) — couples who slide into big commitments without explicit conversations show lower relationship quality.
+
+Then 5 decision lenses, in order. For each lens, give a **general example** of what to consider (not tailored to this couple's unknown current stage). Frame each as "if or when you get here." Connect each to relevant Opinion DNA elements.
+
+### Moving in together
+[2-3 paragraphs. Tie to relevant scores — Openness, Conscientiousness, Security vs Stimulation, Property, Iu. What conversations to have before cohabiting.]
+
+### Marriage or deeper commitment
+[2-3 paragraphs. Tradition, Conformity, Security, Loyalty. What explicit conversations the research says predict success.]
+
+### Children (if and when)
+[2-3 paragraphs. Authority, Care, Fairness, SDO, Authoritarianism, Safe-world, Iu, Conscientiousness. What to talk about before trying or adopting.]
+
+### Money and lifestyle level
+[2-3 paragraphs. Subjective Numeracy, Security vs Stimulation, Achievement, Power, Hedonism. Who drives the plan and how to keep both voices in it.]
+
+### Work, career moves, relocating
+[2-3 paragraphs. Self-Direction, Achievement, Conformity, Openness to Change, Security. Career-priority conversations.]
+
+### Section 10: ## Growth Edges
+
+Open with 1 short paragraph framing growth edges as invitations, not criticisms.
+
+Then 2-3 growth edges for each partner. Each edge pairs a strength with a development area. Always framed as "more of," never "less of." Tie every edge to an Opinion DNA element.
+
+Use this structure:
+
+### For [Partner A name]
+- **[Edge name]** — [2-3 sentences. Strength first, then the invitation to lean into. "You have the capacity for this, and it would help the relationship if you leaned into it."]
+
+### For [Partner B name]
+- [same structure]
+
+### Section 11: ## Conversation Prompts
+
+Open with 1 short sentence framing these as things they could do tonight.
+
+Then 15-20 prompts tailored to this couple's profile, grouped in three tiers. Each prompt should point at an actual gap or alignment in the data.
+
+### Warm-up
+- [5-7 gentle prompts, easy to answer]
+
+### Deeper
+- [5-7 prompts that go below the surface]
+
+### High-stakes
+- [3-6 prompts for when they're ready for the hard conversations]
+
+## Final rules
+
+- Start directly with "## Where the Friction Lives". No preamble.
+- Every practice, ritual, and prompt must be concrete enough to do this week.
+- Hedge every personal claim. Strength-first framing everywhere.
+- Never mention a compatibility score, match percentage, or rank the relationship.`;
 }
 
 export function buildCouplesCall2UserPrompt(
@@ -556,13 +685,13 @@ export function buildCouplesCall2UserPrompt(
 ): string {
   const scorePairs = buildScorePair(scoresA, scoresB, nameA, nameB);
 
-  return `Generate conversation cards and relationship playbook for ${nameA} and ${nameB}.
+  return `Generate the prescriptive sections (7-11) of the Couples Comparison Report for ${nameA} (Partner A) and ${nameB} (Partner B).
 
-## Analysis from Call 1:
+## Analysis from Sections 1-6 (already generated):
 ${call1Analysis}
 
 ## All 48 Scores (for reference):
 ${scorePairs}
 
-Generate the Markdown content. Start directly with "### Conversation Cards". Make every card specific to this couple's actual scores and gaps.`;
+Generate the five sections in Markdown, starting directly with "## Where the Friction Lives". Make every zone, practice, and prompt specific to this couple's actual scores and gaps. Hedge every personal claim.`;
 }
