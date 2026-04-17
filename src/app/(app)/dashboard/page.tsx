@@ -90,11 +90,12 @@ function DashboardContent() {
 
       const hasScores = (scores?.length ?? 0) > 0;
 
-      // Check for report
+      // Check for personal report (not comparison reports)
       const { data: reports } = await supabase
         .from("reports")
         .select("id, status")
         .eq("user_id", user.id)
+        .eq("type", "personal")
         .eq("status", "completed")
         .limit(1);
 
