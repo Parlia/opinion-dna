@@ -64,6 +64,7 @@ function ComparePage() {
   const searchParams = useSearchParams();
   const [invites, setInvites] = useState<Invite[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [directReports, setDirectReports] = useState<Array<{ id: string; relationship_type: RelationshipType | null; created_at: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [pricing, setPricing] = useState<Record<string, PricingData>>({});
@@ -142,6 +143,18 @@ function ComparePage() {
         }
         setProfiles(profileMap);
       }
+
+      // Fetch completed comparison reports the user directly owns
+      // (e.g. seeded example reports that aren't tied to an invite's comparison_selections)
+      const { data: ownedReports } = await supabase
+        .from("reports")
+        .select("id, relationship_type, created_at")
+        .eq("user_id", user.id)
+        .eq("type", "comparison")
+        .eq("status", "completed")
+        .order("created_at", { ascending: false });
+
+      setDirectReports((ownedReports ?? []) as Array<{ id: string; relationship_type: RelationshipType | null; created_at: string }>);
 
       setLoading(false);
     }
@@ -247,15 +260,35 @@ function ComparePage() {
   const joined = invites.filter(i => i.status === "accepted");
 
   // Build completed list from pricing data where selectionState === "complete"
-  const completedEntries: { invite: Invite; type: RelationshipType; reportId: string; score: number | null }[] = [];
+  const completedEntries: { invite: Invite | null; type: RelationshipType; reportId: string; score: number | null; displayName: string }[] = [];
+  const seenReportIds = new Set<string>();
   for (const invite of joined) {
     for (const type of RELATIONSHIP_TYPES) {
       const key = pricingKey(invite.id, type);
       const p = pricing[key];
       if (p?.selectionState === "complete" && p.reportId) {
-        completedEntries.push({ invite, type, reportId: p.reportId, score: p.compatibilityScore });
+        completedEntries.push({
+          invite,
+          type,
+          reportId: p.reportId,
+          score: p.compatibilityScore,
+          displayName: invite.to_user_id && profiles[invite.to_user_id] ? profiles[invite.to_user_id] : invite.to_email,
+        });
+        seenReportIds.add(p.reportId);
       }
     }
+  }
+  // Add directly-owned comparison reports (e.g. seeded examples) not already listed
+  for (const report of directReports) {
+    if (seenReportIds.has(report.id)) continue;
+    const type: RelationshipType = (report.relationship_type as RelationshipType) || "cofounders";
+    completedEntries.push({
+      invite: null,
+      type,
+      reportId: report.id,
+      score: null,
+      displayName: "Example report",
+    });
   }
 
   // Filter joined to only show invites that have at least one non-complete type
@@ -484,15 +517,15 @@ function ComparePage() {
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
-              {completedEntries.map(({ invite, type, reportId, score }) => (
-                <div key={`${invite.id}_${type}`} className="px-6 py-5 flex items-center justify-between">
+              {completedEntries.map(({ invite, type, reportId, score, displayName }) => (
+                <div key={`${invite?.id ?? "direct"}_${reportId}_${type}`} className="px-6 py-5 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style={{ backgroundColor: "var(--primary)" }}>
-                      {getDisplayName(invite).charAt(0).toUpperCase()}
+                      {displayName.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <p className="font-medium text-[var(--foreground)]">
-                        {getDisplayName(invite)}
+                        {displayName}
                         <span className="ml-2 text-xs font-normal text-[var(--muted)]">{TYPE_LABELS[type]}</span>
                       </p>
                       {score != null && (

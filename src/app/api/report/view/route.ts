@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const { data: report, error } = await admin
     .from("reports")
-    .select("id, user_id, content, status, scores_snapshot, comparison_scores_snapshot, comparison_user_id")
+    .select("id, user_id, content, status, scores_snapshot, comparison_scores_snapshot, comparison_user_id, relationship_type")
     .eq("id", reportId)
     .single();
 

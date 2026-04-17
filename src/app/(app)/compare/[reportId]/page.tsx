@@ -16,6 +16,7 @@ interface ComparisonReport {
   status: string;
   scores_snapshot: number[] | null;
   comparison_scores_snapshot: number[] | null;
+  relationship_type: string | null;
 }
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ const SECTION_STYLES: Record<string, { accent: string; bg: string; icon: string 
   "Perfect Pitches": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🎤" },
   "All 48 Dimensions": { accent: "#555", bg: "#F9F8F6", icon: "📋" },
   "What Now": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🎯" },
+  "What Comes Next": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🎯" },
   // Couples report sections
   "Relationship Success": { accent: "#E91E63", bg: "#FFF0F5", icon: "💕" },
   "Relationship Playbook": { accent: "#0066CC", bg: "#F0F7FF", icon: "📖" },
@@ -621,6 +623,7 @@ export default function ComparisonReportPage() {
     ["pitch", "Pitches"],
     ["48 dimension", "Comparison"],
     ["what now", "What Now?"],
+    ["what comes next", "What Next?"],
     // Couples report
     ["relationship success", "Relationship"],
     ["relationship playbook", "Playbook"],
@@ -652,7 +655,11 @@ export default function ComparisonReportPage() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}>
-              Co-Founder Compatibility Report
+              {report.relationship_type === "friends"
+                ? "Friendship Comparison Report"
+                : report.relationship_type === "couples"
+                  ? "Couples Compatibility Report"
+                  : "Co-Founder Compatibility Report"}
             </h1>
             <p className="text-sm text-[var(--muted)] mt-1">
               {nameA} & {nameB} — 48 dimensions across Personality, Values, and Meta-Thinking

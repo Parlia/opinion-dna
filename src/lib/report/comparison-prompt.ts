@@ -346,7 +346,11 @@ Generate Markdown with these sections. Use ## (h2) for section headings.
 
 ## The Friend You Need
 
-One paragraph per person. What does each person uniquely bring to this friendship? What would the other person miss if this friend weren't in their life? Be specific about which traits create this value.`;
+One paragraph per person. What does each person uniquely bring to this friendship? What would the other person miss if this friend weren't in their life? Be specific about which traits create this value.
+
+## What Comes Next
+
+2-3 warm, practical paragraphs that close the report. Suggest what to do with this insight: the conversation to have this week, the shared experience to plan, the way to lean into the alignments or appreciate the differences. End with one concrete invitation — something specific these two could actually do together based on their scores. Keep it warm and shareable, not prescriptive.`;
 }
 
 export function buildFriendsUserPrompt(
