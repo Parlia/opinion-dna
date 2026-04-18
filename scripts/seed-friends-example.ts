@@ -55,7 +55,7 @@ const PARTNER_A_SCORES = [
   45, 85, 55, 30, 25,
   60, 50, 65, 45, 35, 80, 40,
   70, 88, 75, 80, 90,
-  60, 45, 20, 30,
+  60, 45, 20, 30, 25,
   40, 25,
   35, 82, 45, 75,
   55, 40, 70, 50,
@@ -69,7 +69,7 @@ const PARTNER_B_SCORES = [
   70, 40, 75, 60, 55,
   80, 70, 55, 30, 65, 45, 60,
   35, 70, 50, 40, 65,
-  75, 70, 60, 55,
+  75, 70, 60, 55, 55,
   25, 45,
   72, 55, 65, 35,
   50, 60, 45, 55,
@@ -262,7 +262,10 @@ ${signature.portrait || ""}
     content += `---\n\n${call2Content}\n`;
   }
 
-  content += `\n---\n\n## Methodology and Sources\n\nThis report is grounded in seven bodies of research on friendship:\n\n- **Robin Dunbar** — the layered model of friendship (1.5 intimates, 5 close confidants, 15 good friends, 150 casual, 500 acquaintances). Friendships move inward by shared time and drift outward when that investment drops.\n- **Jeffrey Hall** — the hours of friendship. Roughly 50 hours to move from acquaintance to casual friend, 90 to real friend, 200 to close friend. Close friends decline by roughly half every seven adult years without active maintenance.\n- **Marisa Franco** — *Platonic*, friendship attachment, the power of active initiation as the cheapest friendship-lengthening behavior.\n- **William Rawlins** — the dialectical tensions of friendship: independence vs dependence, affection vs instrumentality, judgment vs acceptance. Lasting friendships keep renegotiating these.\n- **Shasta Nelson** — the three pillars of frientimacy: positivity, consistency, vulnerability.\n- **John Gottman** (adapted to friendship) — the Four Horsemen, the 5-to-1 positive-to-negative ratio, bids for connection, known-ness.\n- **Julianne Holt-Lunstad and John Cacioppo** — the health stakes of social connection. Social isolation is roughly as lethal as smoking. Quality matters more than quantity.\n\nThe Opinion DNA assessment itself was designed in consultation with academic psychologists and behavioral scientists from Royal Holloway, Oxford, Cambridge, University of Pennsylvania, City University, and NYU.\n\n**What this report does:** it names patterns suggested by two psychometric profiles and offers concrete practices to work with those patterns.\n\n**What this report does not do:** it does not diagnose, score the friendship, predict outcomes, or tell you whether to stay close. The reader always has agency over the interpretation.\n\n`;
+  // What Now?
+  content += `\n---\n\n## What Now?\n\nThis report is a mirror, not a verdict. It's most useful when you read it together and notice what rings true, what surprises you, and what you want to talk about.\n\nThree things to do with it:\n\n**Pick one conversation.** The prompts above are the most concrete thing here. Pick one from the Deeper or Hard tier and have it this week. The hardest ones are usually the ones that matter most.\n\n**Choose one stay-close ritual.** Don't try to adopt the whole playbook. Pick one practice from the Repair and Stay-Close section and commit to it for the next month. Jeffrey Hall's research is clear: passive friendship decays, active maintenance compounds.\n\n**Come back to it.** Revisit this report the next time one of you hits a life transition (a move, a new job, a demanding season). The patterns in the Drift and Transitions Compass will land differently when the situation is real.\n\n`;
+
+  content += `---\n\n## Methodology and Sources\n\nThis report is grounded in seven bodies of research on friendship:\n\n- **Robin Dunbar** — the layered model of friendship (1.5 intimates, 5 close confidants, 15 good friends, 150 casual, 500 acquaintances). Friendships move inward by shared time and drift outward when that investment drops.\n- **Jeffrey Hall** — the hours of friendship. Roughly 50 hours to move from acquaintance to casual friend, 90 to real friend, 200 to close friend. Close friends decline by roughly half every seven adult years without active maintenance.\n- **Marisa Franco** — *Platonic*, friendship attachment, the power of active initiation as the cheapest friendship-lengthening behavior.\n- **William Rawlins** — the dialectical tensions of friendship: independence vs dependence, affection vs instrumentality, judgment vs acceptance. Lasting friendships keep renegotiating these.\n- **Shasta Nelson** — the three pillars of frientimacy: positivity, consistency, vulnerability.\n- **John Gottman** (adapted to friendship) — the Four Horsemen, the 5-to-1 positive-to-negative ratio, bids for connection, known-ness.\n- **Julianne Holt-Lunstad and John Cacioppo** — the health stakes of social connection. Social isolation is roughly as lethal as smoking. Quality matters more than quantity.\n\nThe Opinion DNA assessment itself was designed in consultation with academic psychologists and behavioral scientists from Royal Holloway, Oxford, Cambridge, University of Pennsylvania, City University, and NYU.\n\n**What this report does:** it names patterns suggested by two psychometric profiles and offers concrete practices to work with those patterns.\n\n**What this report does not do:** it does not diagnose, score the friendship, predict outcomes, or tell you whether to stay close. The reader always has agency over the interpretation.\n\n`;
 
   content += `---\n\n## All 48 Dimensions Compared\n\n${scoreTable}\n\n`;
 
@@ -287,7 +290,12 @@ ${signature.portrait || ""}
   if (existing?.id) {
     const { error } = await admin
       .from("reports")
-      .update({ content, status: "completed" })
+      .update({
+        content,
+        status: "completed",
+        scores_snapshot: PARTNER_A_SCORES,
+        comparison_scores_snapshot: PARTNER_B_SCORES,
+      })
       .eq("id", existing.id);
     if (error) {
       console.error("Update failed:", error.message);

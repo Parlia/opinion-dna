@@ -56,7 +56,7 @@ const PARTNER_A_SCORES = [
   45, 85, 55, 30, 25,
   60, 50, 65, 45, 35, 80, 40,
   70, 88, 75, 80, 90,
-  60, 45, 20, 30,
+  60, 45, 20, 30, 25,
   40, 25,
   35, 82, 45, 75,
   55, 40, 70, 50,
@@ -70,7 +70,7 @@ const PARTNER_B_SCORES = [
   70, 40, 75, 60, 55,
   80, 70, 55, 30, 65, 45, 60,
   35, 70, 50, 40, 65,
-  75, 70, 60, 55,
+  75, 70, 60, 55, 55,
   25, 45,
   72, 55, 65, 35,
   50, 60, 45, 55,
@@ -257,7 +257,10 @@ ${chemistry.portrait || ""}
     content += `---\n\n${call2Content}\n`;
   }
 
-  content += `\n---\n\n## Methodology and Sources\n\nThis report is grounded in six bodies of research:\n\n- **Gottman Institute** — 40+ years of longitudinal couples research. The Four Horsemen (criticism, contempt, defensiveness, stonewalling), the 5-to-1 positive-to-negative ratio in conflict, bids for connection, the 20-minute physiological break.\n- **Sue Johnson, Emotionally Focused Therapy** — adult attachment bonds, demand-withdraw cycles, the A.R.E. framework (Accessible, Responsive, Engaged).\n- **Adult Attachment Theory** (Bowlby, Ainsworth, Hazan and Shaver, Levine and Heller) — secure, anxious, avoidant, and disorganized styles. Earned security.\n- **Self-Determination Theory** (Deci and Ryan) — autonomy, competence, and relatedness as the foundations of thriving.\n- **Terri Orbuch's 26-year Early Years of Marriage study** — affective affirmation as the strongest predictor of long-term satisfaction.\n- **Divorce longitudinal research** (Amato, Wilcox, Stanley and Rhoades, Hawkins) — the most-cited reasons relationships end, and the "sliding versus deciding" effect.\n- **Positive Psychology** (Seligman, Fredrickson, Gable) — capitalization (how partners respond to good news) and shared meaning as resilience factors.\n\nThe Opinion DNA assessment itself was designed in consultation with academic psychologists and behavioral scientists from Royal Holloway, Oxford, Cambridge, University of Pennsylvania, City University, and NYU.\n\n**What this report does:** it names patterns suggested by two psychometric profiles and offers concrete practices to work with those patterns. It's a structured mirror.\n\n**What this report does not do:** it does not diagnose, score the relationship, predict outcomes, or tell you whether you should stay together. The reader always has agency over the interpretation.\n\n`;
+  // What Now?
+  content += `\n---\n\n## What Now?\n\nThis report maps the terrain of your relationship. It's a mirror, not a verdict, and it works best when you read it together and let it start conversations.\n\nThree things to do with it:\n\n**Have the conversations.** The Conversation Cards and Conversation Prompts above are the most valuable part of this report. Sit down together and work through the ones that feel most alive. The hardest are usually the ones that matter most.\n\n**Build one ritual.** The Relationship Playbook and the Conflict and Repair Guide give you specific practices. Don't try to adopt all of them. Pick the one that addresses your biggest pattern and commit to it for 30 days. Gottman's research is clear: consistency beats intensity.\n\n**Come back to it.** Revisit this report after your first real disagreement or your next big life transition. The patterns described here will suddenly feel viscerally true, and the practices will make more sense in context.\n\n`;
+
+  content += `---\n\n## Methodology and Sources\n\nThis report is grounded in six bodies of research:\n\n- **Gottman Institute** — 40+ years of longitudinal couples research. The Four Horsemen (criticism, contempt, defensiveness, stonewalling), the 5-to-1 positive-to-negative ratio in conflict, bids for connection, the 20-minute physiological break.\n- **Sue Johnson, Emotionally Focused Therapy** — adult attachment bonds, demand-withdraw cycles, the A.R.E. framework (Accessible, Responsive, Engaged).\n- **Adult Attachment Theory** (Bowlby, Ainsworth, Hazan and Shaver, Levine and Heller) — secure, anxious, avoidant, and disorganized styles. Earned security.\n- **Self-Determination Theory** (Deci and Ryan) — autonomy, competence, and relatedness as the foundations of thriving.\n- **Terri Orbuch's 26-year Early Years of Marriage study** — affective affirmation as the strongest predictor of long-term satisfaction.\n- **Divorce longitudinal research** (Amato, Wilcox, Stanley and Rhoades, Hawkins) — the most-cited reasons relationships end, and the "sliding versus deciding" effect.\n- **Positive Psychology** (Seligman, Fredrickson, Gable) — capitalization (how partners respond to good news) and shared meaning as resilience factors.\n\nThe Opinion DNA assessment itself was designed in consultation with academic psychologists and behavioral scientists from Royal Holloway, Oxford, Cambridge, University of Pennsylvania, City University, and NYU.\n\n**What this report does:** it names patterns suggested by two psychometric profiles and offers concrete practices to work with those patterns. It's a structured mirror.\n\n**What this report does not do:** it does not diagnose, score the relationship, predict outcomes, or tell you whether you should stay together. The reader always has agency over the interpretation.\n\n`;
 
   content += `---\n\n## All 48 Dimensions Compared\n\n${scoreTable}\n\n`;
 
@@ -282,7 +285,12 @@ ${chemistry.portrait || ""}
   if (existing?.id) {
     const { error } = await admin
       .from("reports")
-      .update({ content, status: "completed" })
+      .update({
+        content,
+        status: "completed",
+        scores_snapshot: PARTNER_A_SCORES,
+        comparison_scores_snapshot: PARTNER_B_SCORES,
+      })
       .eq("id", existing.id);
     if (error) {
       console.error("Update failed:", error.message);

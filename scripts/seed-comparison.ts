@@ -55,7 +55,7 @@ const PARTNER_A_SCORES = [
   45, 85, 55, 30, 25,    // Moral: Care mid, Fairness HIGH, Loyalty mid, Authority low, Purity low
   60, 50, 65, 45, 35, 80, 40,  // Cooperative: Family mid, Group mid, Reciprocity high, Heroism mid, Deference low, Equity high, Property mid
   70, 88, 75, 80, 90,    // Personal: Power high, Achievement HIGH, Hedonism high, Stimulation high, Self-Direction VERY HIGH
-  60, 45, 20, 30,        // Personal cont: Universalism mid, Benevolence mid, Conformity LOW, Tradition low, Security low
+  60, 45, 20, 30, 25,    // Personal cont: Universalism mid, Benevolence mid, Conformity LOW, Tradition low, Security low
   40, 25,                // Social: SDO mid, Auth low
   35, 82, 45, 75,        // Meta: Dogmatism low, NfC HIGH, IntolUncert mid, IntHumility high
   55, 40, 70, 50,        // Meta cont: Anthropomorphism mid, Teleology mid, SubjNumeracy high, JustWorld mid
@@ -72,7 +72,7 @@ const PARTNER_B_SCORES = [
   70, 40, 75, 60, 55,    // Moral: Care high, Fairness LOW (vs A's 85!), Loyalty HIGH, Authority mid, Purity mid
   80, 70, 55, 30, 65, 45, 60,  // Cooperative: Family HIGH, Group high, Reciprocity mid, Heroism low, Deference high, Equity mid, Property mid
   35, 70, 50, 40, 65,    // Personal: Power low, Achievement high, Hedonism mid, Stimulation low, Self-Direction mid
-  75, 70, 60, 55,        // Personal cont: Universalism high, Benevolence high, Conformity mid, Tradition mid, Security mid
+  75, 70, 60, 55, 55,    // Personal cont: Universalism high, Benevolence high, Conformity mid, Tradition mid, Security mid
   25, 45,                // Social: SDO low, Auth mid
   72, 55, 65, 35,        // Meta: Dogmatism HIGH (vs A's 35!), NfC mid, IntolUncert high, IntHumility LOW
   50, 60, 45, 55,        // Meta cont: Anthropomorphism mid, Teleology mid, SubjNumeracy mid, JustWorld mid

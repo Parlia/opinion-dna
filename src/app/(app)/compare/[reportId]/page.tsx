@@ -391,8 +391,9 @@ function DimensionElement({ idx, dimKey, scoresA, scoresB, nameA, nameB }: {
 }) {
   const [open, setOpen] = useState(false);
   const el = ELEMENTS[idx];
-  const a = scoresA[idx];
-  const b = scoresB[idx];
+  // Defensive: if scores are missing (legacy seeded data with <48 elements), default to 0.
+  const a = scoresA[idx] ?? 0;
+  const b = scoresB[idx] ?? 0;
   const gap = Math.abs(a - b);
   const color = scoreColor(dimKey, Math.max(a, b));
   const gapCol = gapColor(gap);
