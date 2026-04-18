@@ -11,8 +11,10 @@ import {
   buildCall1UserPrompt,
   buildCall2SystemPrompt,
   buildCall2UserPrompt,
-  buildFriendsSystemPrompt,
-  buildFriendsUserPrompt,
+  buildFriendsCall1SystemPrompt,
+  buildFriendsCall1UserPrompt,
+  buildFriendsCall2SystemPrompt,
+  buildFriendsCall2UserPrompt,
   buildCouplesCall1SystemPrompt,
   buildCouplesCall1UserPrompt,
   buildCouplesCall2SystemPrompt,
@@ -159,39 +161,55 @@ export async function POST(request: Request) {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY!;
 
-    // ── Friends: single-call, lighter report ─────────────────────────
+    // ── Friends: two-call architecture, free, 12-section brief ────────
     if (relType === "friends") {
-      const friendsContent = await streamClaude(
-        apiKey,
-        buildFriendsSystemPrompt(),
-        buildFriendsUserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, compatibility)
-      );
+      // Call 1: JSON analysis for sections 1-6
+      let friendsCall1Json: Record<string, unknown> | null = null;
+      let friendsCall1Analysis: string;
+      try {
+        const call1Raw = await streamClaude(
+          apiKey,
+          buildFriendsCall1SystemPrompt(),
+          buildFriendsCall1UserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, compatibility)
+        );
+        friendsCall1Json = extractJSON(call1Raw);
+        friendsCall1Analysis = JSON.stringify(friendsCall1Json, null, 2);
+      } catch (err) {
+        console.error("Friends Call 1 JSON parse failed, retrying:", err);
+        try {
+          const retryRaw = await streamClaude(
+            apiKey,
+            buildFriendsCall1SystemPrompt(),
+            buildFriendsCall1UserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, compatibility)
+          );
+          friendsCall1Json = extractJSON(retryRaw);
+          friendsCall1Analysis = JSON.stringify(friendsCall1Json, null, 2);
+        } catch (retryErr) {
+          console.error("Friends Call 1 retry failed:", retryErr);
+          friendsCall1Analysis = retryErr instanceof LLMParseError ? retryErr.rawResponse : "Analysis unavailable.";
+        }
+      }
+
+      // Call 2: Markdown prescriptive content for sections 7-11
+      let friendsCall2Content = "";
+      try {
+        friendsCall2Content = await streamClaude(
+          apiKey,
+          buildFriendsCall2SystemPrompt(),
+          buildFriendsCall2UserPrompt(nameA, nameB, scoresFrom.scores, scoresTo.scores, friendsCall1Analysis)
+        );
+      } catch (err) {
+        console.error("Friends Call 2 failed:", err);
+      }
 
       const scoreTable = buildComparisonScoreTable(scoresFrom.scores, scoresTo.scores, nameA, nameB);
-
-      const content = `# Friendship Comparison
-
-**${nameA} & ${nameB}**
-
-*A comparative look across 48 dimensions of how you think, what you value, and how your minds work.*
-
-*Prepared by Opinion DNA opiniondna.com*
-
----
-
-${friendsContent}
-
----
-
-## All 48 Dimensions Compared
-
-${scoreTable}
-
----
-
-*The Opinion DNA was designed in consultation with academic psychologists and behavioral scientists from the universities of Royal Holloway, Oxford, Cambridge, University of Pennsylvania, City University, and NYU.*
-
-*opiniondna.com*`;
+      const content = assembleFriendsReport({
+        nameA,
+        nameB,
+        call1Json: friendsCall1Json,
+        call2Content: friendsCall2Content,
+        scoreTable,
+      });
 
       await admin.from("reports").update({ content, status: "completed" }).eq("id", report.id);
 
@@ -474,6 +492,132 @@ ${scoreRationale}
  * Assemble the couples comparison report from Call 1 JSON + Call 2 markdown.
  * Follows the brief's 12-section structure. No compatibility score display.
  */
+/**
+ * Assemble the friends comparison report from Call 1 JSON + Call 2 markdown.
+ * Follows the Friends brief's 12-section structure. No compatibility score display.
+ */
+function assembleFriendsReport(params: {
+  nameA: string;
+  nameB: string;
+  call1Json: Record<string, unknown> | null;
+  call2Content: string;
+  scoreTable: string;
+}): string {
+  const { nameA, nameB, call1Json, call2Content, scoreTable } = params;
+
+  type Item = { element?: string; dimension?: string; meaning?: string; framing?: string; fromBothSides?: string; showsUpAs?: string };
+
+  const signature = (call1Json?.friendshipSignature || {}) as { portrait?: string; headlineTraits?: string[] };
+  const align = (call1Json?.align || {}) as { narrative?: string; items?: Item[] };
+  const diverge = (call1Json?.diverge || {}) as { narrative?: string; items?: Item[] };
+  const howYouThink = (call1Json?.howYouThink || {}) as { narrative?: string; keyComparisons?: Item[] };
+  const whatYouValue = (call1Json?.whatYouValue || {}) as { narrative?: string; topAlignments?: string[]; topDivergences?: string[] };
+  const emotionalRhythm = (call1Json?.emotionalRhythm || {}) as { pattern?: string; narrative?: string };
+
+  let content = `# Friendship Comparison Report
+
+**${nameA} & ${nameB}**
+
+*A mirror for two minds that have chosen each other. A comparative look across 48 dimensions of how you think, what you value, and how your minds work.*
+
+*Prepared by Opinion DNA opiniondna.com*
+
+---
+
+## How to Read This Report
+
+This report compares two Opinion DNA profiles across 48 dimensions grouped into three areas: Personality, Values, and Meta-Thinking.
+
+The report names patterns suggested by your two profiles. It doesn't rank your friendship, score compatibility, or tell you whether to stay close. It's a mirror, not a verdict.
+
+Throughout you'll find hedged language ("may", "suggests", "might"). That's deliberate. These are patterns, not facts about who either of you are. If something doesn't fit, trust your own read.
+
+Research grounding: Dunbar's layered model of friendship, Hall's hours-of-friendship research, Franco's friendship attachment work, Rawlins' dialectical tensions, Nelson's three pillars of frientimacy, Gottman adapted to friendship, and Holt-Lunstad/Cacioppo on the health stakes of connection.
+
+---
+
+## Your Friendship Signature
+
+${signature.portrait || ""}
+
+`;
+
+  if (Array.isArray(signature.headlineTraits) && signature.headlineTraits.length > 0) {
+    content += `**Headline traits**\n\n`;
+    for (const trait of signature.headlineTraits) {
+      content += `- ${trait}\n`;
+    }
+    content += `\n`;
+  }
+
+  content += `---\n\n## Where You Align\n\n${align.narrative || ""}\n\n`;
+  if (Array.isArray(align.items)) {
+    for (const item of align.items) {
+      if (item.element) content += `### ${item.element}\n\n${item.meaning || ""}\n\n`;
+    }
+  }
+
+  content += `---\n\n## Where You Diverge\n\n${diverge.narrative || ""}\n\n`;
+  if (Array.isArray(diverge.items)) {
+    for (const item of diverge.items) {
+      if (!item.element) continue;
+      const framingLabel = item.framing === "complementary" ? "Complementary"
+        : item.framing === "friction" ? "Worth noticing"
+        : item.framing === "both" ? "Complementary and worth noticing"
+        : "";
+      content += `### ${item.element}\n\n`;
+      if (framingLabel) content += `*${framingLabel}*\n\n`;
+      if (item.fromBothSides) content += `${item.fromBothSides}\n\n`;
+    }
+  }
+
+  content += `---\n\n## How You Both Think\n\n${howYouThink.narrative || ""}\n\n`;
+  if (Array.isArray(howYouThink.keyComparisons) && howYouThink.keyComparisons.length > 0) {
+    content += `**Key meta-thinking comparisons**\n\n`;
+    for (const cmp of howYouThink.keyComparisons) {
+      if (cmp.element) content += `- **${cmp.element}** — ${cmp.showsUpAs || ""}\n`;
+    }
+    content += `\n`;
+  }
+
+  content += `---\n\n## What You Both Value\n\n${whatYouValue.narrative || ""}\n\n`;
+  if (Array.isArray(whatYouValue.topAlignments) && whatYouValue.topAlignments.length > 0) {
+    content += `**Top alignments**\n\n`;
+    for (const a of whatYouValue.topAlignments) {
+      content += `- ${a}\n`;
+    }
+    content += `\n`;
+  }
+  if (Array.isArray(whatYouValue.topDivergences) && whatYouValue.topDivergences.length > 0) {
+    content += `**Top divergences**\n\n`;
+    for (const d of whatYouValue.topDivergences) {
+      content += `- ${d}\n`;
+    }
+    content += `\n`;
+  }
+
+  content += `---\n\n## Emotional Rhythm\n\n${emotionalRhythm.narrative || ""}\n\n`;
+
+  // Sections 7-11 from Call 2 markdown
+  if (call2Content) {
+    content += `---\n\n${call2Content}\n`;
+  }
+
+  // Section 12: Methodology and Sources
+  content += `\n---\n\n## Methodology and Sources\n\nThis report is grounded in seven bodies of research on friendship:\n\n- **Robin Dunbar** — the layered model of friendship (1.5 intimates, 5 close confidants, 15 good friends, 150 casual, 500 acquaintances). Friendships move inward by shared time and drift outward when that investment drops.\n- **Jeffrey Hall** — the hours of friendship. Roughly 50 hours to move from acquaintance to casual friend, 90 to real friend, 200 to close friend. Close friends decline by roughly half every seven adult years without active maintenance.\n- **Marisa Franco** — *Platonic*, friendship attachment, the power of active initiation as the cheapest friendship-lengthening behavior.\n- **William Rawlins** — the dialectical tensions of friendship: independence vs dependence, affection vs instrumentality, judgment vs acceptance. Lasting friendships keep renegotiating these.\n- **Shasta Nelson** — the three pillars of frientimacy: positivity, consistency, vulnerability.\n- **John Gottman** (adapted to friendship) — the Four Horsemen, the 5-to-1 positive-to-negative ratio, bids for connection, known-ness.\n- **Julianne Holt-Lunstad and John Cacioppo** — the health stakes of social connection. Social isolation is roughly as lethal as smoking. Quality matters more than quantity.\n\nThe Opinion DNA assessment itself was designed in consultation with academic psychologists and behavioral scientists from Royal Holloway, Oxford, Cambridge, University of Pennsylvania, City University, and NYU.\n\n**What this report does:** it names patterns suggested by two psychometric profiles and offers concrete practices to work with those patterns.\n\n**What this report does not do:** it does not diagnose, score the friendship, predict outcomes, or tell you whether to stay close. The reader always has agency over the interpretation.\n\n`;
+
+  // 48 Dimensions comparison
+  content += `---\n\n## All 48 Dimensions Compared\n\n${scoreTable}\n\n`;
+
+  content += `---\n\n*opiniondna.com*`;
+
+  // Post-process: fix missing space after bold/italic labels
+  content = content.replace(/\*\*([^*]+):\*\*([^\s\n])/g, "**$1:** $2");
+  content = content.replace(/\*([^*]+):\*([^\s\n*])/g, "*$1:* $2");
+
+  return content;
+}
+
 function assembleCouplesReport(params: {
   nameA: string;
   nameB: string;

@@ -86,7 +86,17 @@ const SECTION_STYLES: Record<string, { accent: string; bg: string; icon: string 
   "Relationship Success": { accent: "#E91E63", bg: "#FFF0F5", icon: "💕" },
   "Relationship Playbook": { accent: "#0066CC", bg: "#F0F7FF", icon: "📖" },
   "Couples Compatibility": { accent: "#E91E63", bg: "#FFF0F5", icon: "💕" },
-  // Friends report sections
+  // Friends report sections (v2 brief-based)
+  // ("Where You Align", "Where You Diverge", "Where the Friction Lives",
+  //  "Growth Edges", "Conversation Prompts", "Methodology and Sources"
+  //  are shared with co-founders/couples entries above)
+  "Friendship Signature": { accent: "#E91E63", bg: "#FFF0F5", icon: "✨" },
+  "How You Both Think": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🧠" },
+  "What You Both Value": { accent: "#0066CC", bg: "#F0F7FF", icon: "💎" },
+  "Emotional Rhythm": { accent: "#E91E63", bg: "#FFF0F5", icon: "💗" },
+  "Repair and Stay-Close": { accent: "#0066CC", bg: "#F0F7FF", icon: "🛠️" },
+  "Drift and Transitions Compass": { accent: "#6F00FF", bg: "#FAF8FF", icon: "🧭" },
+  // Friends report sections (legacy — kept for backward compat)
   "Friendship Profile": { accent: "#E91E63", bg: "#FFF0F5", icon: "💜" },
   "Where You Click": { accent: "#1a7a3a", bg: "#F4FBF7", icon: "✨" },
   "Butt Heads": { accent: "#E67E22", bg: "#FFF8F0", icon: "😄" },
@@ -627,17 +637,24 @@ export default function ComparisonReportPage() {
   // Order matters: more specific matches should come first
   const sectionShortLabels: [string, string][] = [
     ["how to read", "How to Read"],
-    // Couples report (v2 brief-based) — put before generic matches
+    // Couples and Friends report (v2 brief-based) — put before generic matches
     ["chemistry signature", "Chemistry"],
+    ["friendship signature", "Signature"],
     ["where you overlap", "Overlap"],
+    ["where you align", "Align"],
     ["where you diverge", "Diverge"],
+    ["how you both think", "Thinking"],
     ["process the world", "Thinking"],
+    ["what you both value", "Values"],
     ["value differently", "Values"],
+    ["emotional rhythm", "Emotion"],
     ["handle emotion", "Emotion"],
     ["a note to each of you", "Notes"],
     ["where the friction lives", "Friction"],
     ["conflict and repair", "Repair"],
+    ["repair and stay-close", "Repair"],
     ["big decisions compass", "Decisions"],
+    ["drift and transitions", "Transitions"],
     ["growth edges", "Growth"],
     ["conversation prompts", "Prompts"],
     ["methodology and sources", "Sources"],
