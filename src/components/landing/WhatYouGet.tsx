@@ -157,11 +157,18 @@ function ScoreBar({
           style={{ left: `${item.avg}%` }}
         />
       </div>
-      {open && (
-        <div className="mt-3 bg-[#F9F8F6] border border-[#E8E4DC] rounded-lg px-4 py-3">
-          <p className="text-[13px] text-[#444] leading-relaxed">{item.explanation}</p>
+      {/* Smooth expand/collapse via grid-template-rows trick */}
+      <div
+        className={`grid transition-[grid-template-rows,margin-top] duration-300 ease-out ${
+          open ? "grid-rows-[1fr] mt-3" : "grid-rows-[0fr] mt-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="bg-[#F9F8F6] border border-[#E8E4DC] rounded-lg px-4 py-3">
+            <p className="text-[13px] text-[#444] leading-relaxed">{item.explanation}</p>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
