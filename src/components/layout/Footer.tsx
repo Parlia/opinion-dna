@@ -20,7 +20,7 @@ export default function Footer() {
             <h4 className="font-semibold text-white mb-4">Products</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/signup" className="hover:text-white transition-colors">
+                <Link href="/personal-assessment" className="hover:text-white transition-colors">
                   Personal Assessment
                 </Link>
               </li>
