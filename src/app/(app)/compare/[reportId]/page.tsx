@@ -435,12 +435,19 @@ function DimensionElement({ idx, dimKey, scoresA, scoresB, nameA, nameB }: {
 
       <DimensionRow element={el} gap={gap} gapCol={gapCol} open={open} />
 
-      {open && (
-        <div className={`mt-2 ${style.bg} ${style.border} border rounded-lg px-4 py-3`}>
-          <p className="text-[12px] font-semibold text-[#333] mb-1">{explanation.headline}</p>
-          <p className="text-[13px] text-[#444] leading-relaxed">{explanation.body}</p>
+      {/* Smooth expand/collapse via grid-template-rows trick */}
+      <div
+        className={`grid transition-[grid-template-rows,margin-top] duration-300 ease-out ${
+          open ? "grid-rows-[1fr] mt-2" : "grid-rows-[0fr] mt-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className={`${style.bg} ${style.border} border rounded-lg px-4 py-3`}>
+            <p className="text-[12px] font-semibold text-[#333] mb-1">{explanation.headline}</p>
+            <p className="text-[13px] text-[#444] leading-relaxed">{explanation.body}</p>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
