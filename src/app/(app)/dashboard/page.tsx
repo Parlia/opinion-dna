@@ -11,6 +11,7 @@ interface DashboardState {
   quizProgress: number; // 0-179
   hasScores: boolean;
   hasReport: boolean;
+  hasComparison: boolean;
   userName: string;
 }
 
@@ -38,6 +39,7 @@ function DashboardContent() {
     quizProgress: 0,
     hasScores: false,
     hasReport: false,
+    hasComparison: false,
     userName: "",
   });
 
@@ -101,12 +103,24 @@ function DashboardContent() {
 
       const hasReport = (reports?.length ?? 0) > 0;
 
+      // Check for at least one completed comparison report (any relationship type)
+      const { data: comparisonReports } = await supabase
+        .from("reports")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("type", "comparison")
+        .eq("status", "completed")
+        .limit(1);
+
+      const hasComparison = (comparisonReports?.length ?? 0) > 0;
+
       setState({
         loading: false,
         hasPurchase,
         quizProgress: quizProgress ?? 0,
         hasScores,
         hasReport,
+        hasComparison,
         userName,
       });
     }
@@ -190,6 +204,23 @@ function DashboardContent() {
           active={state.hasScores && !state.hasReport}
           actionLabel={state.hasReport ? "View Report" : "Generate Report"}
           actionHref="/report"
+        />
+
+        {/* Step 5: Compare with others */}
+        <StepCard
+          step={5}
+          title="Compare with others"
+          description={
+            state.hasComparison
+              ? "Invite another friend, partner, or co-founder to compare — or view the reports you already have."
+              : state.hasReport
+              ? "Invite a friend, partner, or co-founder. When they complete their own assessment, you unlock a comparison report together."
+              : "Finish your own report first, then invite others to compare."
+          }
+          completed={state.hasComparison}
+          active={state.hasReport && !state.hasComparison}
+          actionLabel={state.hasComparison ? "Invite Someone Else" : "Invite Someone"}
+          actionHref="/compare"
         />
       </div>
     </div>
