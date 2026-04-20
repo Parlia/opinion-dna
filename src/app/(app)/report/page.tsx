@@ -409,34 +409,34 @@ function ElementRow({ idx, dimKey, scores, explanations }: {
       className={`px-4 py-3 ${explanation ? "cursor-pointer hover:bg-[#FAFAF8] transition-colors" : ""}`}
       onClick={() => explanation && setOpen(!open)}
     >
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2.5">
+      <div className="flex items-center justify-between gap-2 sm:gap-3 mb-1.5">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <span
-            className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white"
+            className="min-w-7 w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0"
             style={{ backgroundColor: color }}
           >
             {el.code}
           </span>
-          <span className="text-sm font-medium text-[#222]">
+          <span className="text-sm font-medium text-[#222] min-w-0 truncate">
             {el.name}
           </span>
         </div>
-        <div className="flex items-center gap-3 text-right">
+        <div className="flex items-center gap-2 sm:gap-3 text-right shrink-0">
           {avg !== null && (
-            <span className="text-xs text-[#aaa]">avg {avg}</span>
+            <span className="hidden sm:inline text-xs text-[#aaa]">avg {avg}</span>
           )}
-          <span className="text-base font-bold text-[#222] w-8 text-right">
+          <span className="text-base font-bold text-[#222] w-7 sm:w-8 text-right">
             {score}
           </span>
           <span
-            className="text-[10px] font-bold w-16 text-right"
+            className="text-[10px] font-bold w-14 sm:w-16 text-right"
             style={{ color: levelColor }}
           >
             {level}
           </span>
           {explanation && (
             <svg
-              className={`w-3.5 h-3.5 text-[#bbb] transition-transform ${open ? "rotate-180" : ""}`}
+              className={`w-3.5 h-3.5 text-[#bbb] transition-transform shrink-0 ${open ? "rotate-180" : ""}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -1026,10 +1026,41 @@ export default function ReportPage() {
   });
   const [activeSection, setActiveSection] = useState(0);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const navRef = useRef<HTMLDivElement>(null);
+  const [navScroll, setNavScroll] = useState({ left: false, right: true });
 
   useEffect(() => {
     loadReport();
   }, []);
+
+  // Auto-scroll nav so active button is visible
+  useEffect(() => {
+    if (!navRef.current) return;
+    const activeBtn = navRef.current.querySelector("[data-active-nav]") as HTMLElement | null;
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [activeSection]);
+
+  // Track nav scroll position for arrow indicators
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const update = () => {
+      const { scrollLeft, scrollWidth, clientWidth } = el;
+      setNavScroll({
+        left: scrollLeft > 5,
+        right: scrollLeft + clientWidth < scrollWidth - 5,
+      });
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [state.report]);
 
   // Scroll spy for section navigation
   useEffect(() => {
@@ -1289,25 +1320,50 @@ export default function ReportPage() {
 
       {/* Section navigation */}
       {navItems.length > 0 && (
-        <div className="sticky top-0 z-10 bg-[var(--background)]/95 backdrop-blur-sm py-3 mb-6 -mx-4 px-4 border-b border-[var(--border)]">
-          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
-            {navItems.map((item) => (
+        <div className="sticky top-0 z-30 bg-[var(--background)]/95 backdrop-blur-sm py-3 mb-6 -mx-4 px-4 border-b border-[var(--border)]">
+          <div className="relative">
+            {/* Left arrow */}
+            {navScroll.left && (
               <button
-                key={item.idx}
-                onClick={() => {
-                  document
-                    .getElementById(item.id)
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                  activeSection === item.idx
-                    ? "bg-[var(--primary)] text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
+                onClick={() => navRef.current?.scrollBy({ left: -120, behavior: "smooth" })}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-11 h-11 flex items-center justify-center text-gray-400 active:text-gray-600"
+                style={{ background: "linear-gradient(to right, var(--background) 60%, transparent)" }}
+                aria-label="Scroll nav left"
               >
-                {item.label}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </button>
-            ))}
+            )}
+            {/* Right arrow */}
+            {navScroll.right && (
+              <button
+                onClick={() => navRef.current?.scrollBy({ left: 120, behavior: "smooth" })}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-11 h-11 flex items-center justify-center text-gray-400 active:text-gray-600"
+                style={{ background: "linear-gradient(to left, var(--background) 60%, transparent)" }}
+                aria-label="Scroll nav right"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </button>
+            )}
+            <div ref={navRef} className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+              {navItems.map((item) => (
+                <button
+                  key={item.idx}
+                  {...(activeSection === item.idx ? { "data-active-nav": true } : {})}
+                  onClick={() => {
+                    document
+                      .getElementById(item.id)
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                    activeSection === item.idx
+                      ? "bg-[var(--primary)] text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

@@ -165,16 +165,16 @@ export default function ScoresPage() {
                         const adjustedColor = scoreColor(dimension, score);
                         const levelColor = LEVEL_COLORS[level] || "#888";
                         return (
-                          <div key={element.index} className="px-6 py-3">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <div className="flex items-center gap-2.5">
+                          <div key={element.index} className="px-4 sm:px-6 py-3">
+                            <div className="flex items-center justify-between gap-2 sm:gap-3 mb-1.5">
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                 <span
-                                  className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white"
+                                  className="min-w-7 w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0"
                                   style={{ backgroundColor: adjustedColor }}
                                 >
                                   {element.code}
                                 </span>
-                                <div>
+                                <div className="min-w-0">
                                   <span className="text-sm font-medium text-[var(--foreground)]">
                                     {element.name}
                                   </span>
@@ -183,17 +183,17 @@ export default function ScoresPage() {
                                   </p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3 shrink-0 ml-4">
+                              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                                 {avg !== null && (
-                                  <span className="text-xs text-[#aaa]">
+                                  <span className="hidden sm:inline text-xs text-[#aaa]">
                                     avg {avg}
                                   </span>
                                 )}
-                                <span className="text-base font-bold text-[var(--foreground)] w-8 text-right">
+                                <span className="text-base font-bold text-[var(--foreground)] w-7 sm:w-8 text-right">
                                   {score}
                                 </span>
                                 <span
-                                  className="text-[10px] font-bold w-16 text-right"
+                                  className="text-[10px] font-bold w-14 sm:w-16 text-right"
                                   style={{ color: levelColor }}
                                 >
                                   {level}

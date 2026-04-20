@@ -403,8 +403,8 @@ function ComparePage() {
     }
 
     return (
-      <div key={type} className="flex items-center justify-between py-2">
-        <div className="flex items-center gap-2">
+      <div key={type} className="flex items-center justify-between gap-3 sm:gap-4 py-2">
+        <div className="flex items-center gap-2 shrink-0">
           <span className="text-sm text-[var(--foreground)]">{TYPE_LABELS[type]}</span>
           <span className="text-xs text-[var(--muted)]"> &mdash; </span>
           {type === "friends" && priceLabel === "Free" ? (
@@ -413,7 +413,7 @@ function ComparePage() {
             <span className="text-xs text-[var(--muted)]">{priceLabel}</span>
           )}
         </div>
-        <div>{actionElement}</div>
+        <div className="min-w-0 text-right">{actionElement}</div>
       </div>
     );
   }
