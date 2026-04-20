@@ -178,7 +178,7 @@ export default function ScoresPage() {
                                   <span className="text-sm font-medium text-[var(--foreground)]">
                                     {element.name}
                                   </span>
-                                  <p className="text-xs text-[var(--muted)] max-w-md">
+                                  <p className="text-xs text-[var(--muted)] max-w-full sm:max-w-md">
                                     {element.tooltip}
                                   </p>
                                 </div>

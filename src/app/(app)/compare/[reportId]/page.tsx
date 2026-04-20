@@ -113,6 +113,59 @@ function getSectionStyle(title: string) {
 
 // ── Section Parser ──────────────────────────────────────────────────────────
 
+// AI-written headings vary; this substring table maps them to short nav labels.
+// Order matters — more specific matches must come first.
+const SECTION_SHORT_LABELS: readonly [string, string][] = [
+  ["how to read", "How to Read"],
+  ["chemistry signature", "Chemistry"],
+  ["friendship signature", "Signature"],
+  ["where you overlap", "Overlap"],
+  ["where you align", "Align"],
+  ["where you diverge", "Diverge"],
+  ["how you both think", "Thinking"],
+  ["process the world", "Thinking"],
+  ["what you both value", "Values"],
+  ["value differently", "Values"],
+  ["emotional rhythm", "Emotion"],
+  ["handle emotion", "Emotion"],
+  ["a note to each of you", "Notes"],
+  ["where the friction lives", "Friction"],
+  ["conflict and repair", "Repair"],
+  ["repair and stay-close", "Repair"],
+  ["big decisions compass", "Decisions"],
+  ["drift and transitions", "Transitions"],
+  ["growth edges", "Growth"],
+  ["conversation prompts", "Prompts"],
+  ["methodology and sources", "Sources"],
+  ["compatibility score", "Compatibility"],
+  ["know about", "Your Co-Founder"],
+  ["success factor", "Success"],
+  ["success", "Success"],
+  ["co-founder", "Co-Founder"],
+  ["under pressure", "Pressure"],
+  ["mitigation", "Mitigations"],
+  ["pitch", "Pitches"],
+  ["48 dimension", "Comparison"],
+  ["what now", "What Now?"],
+  ["what comes next", "What Next?"],
+  ["relationship success", "Relationship"],
+  ["relationship playbook", "Playbook"],
+  ["friendship profile", "Profile"],
+  ["where you click", "Click"],
+  ["butt heads", "Friction"],
+  ["conversation starter", "Starters"],
+  ["conversation", "Conversations"],
+  ["friend you need", "The Friend"],
+];
+
+function getShortLabel(title: string): string {
+  const lower = title.toLowerCase();
+  for (const [substring, label] of SECTION_SHORT_LABELS) {
+    if (lower.includes(substring)) return label;
+  }
+  return title;
+}
+
 function parseSections(content: string) {
   const sections: { title: string; body: string; id: string }[] = [];
   const lines = content.split("\n");
@@ -659,6 +712,28 @@ export default function ComparisonReportPage() {
     return () => observer.disconnect();
   }, [report]);
 
+  // Parse the markdown once per report, not once per render. Report bodies are
+  // 25-40K chars and the parent re-renders on unrelated state (nav scroll, etc).
+  const sections = useMemo(
+    () => (report?.content ? parseSections(report.content) : []),
+    [report?.content]
+  );
+  const { nameA, nameB } = useMemo(() => {
+    const match = report?.content?.match(/\*\*(.+?) & (.+?)\*\*/);
+    return {
+      nameA: match ? match[1] : "Partner A",
+      nameB: match ? match[2] : "Partner B",
+    };
+  }, [report?.content]);
+  const navItems = useMemo(
+    () =>
+      sections
+        .map((s, i) => ({ ...s, idx: i }))
+        .filter((s) => s.title)
+        .map((s) => ({ label: getShortLabel(s.title), idx: s.idx, id: s.id })),
+    [sections]
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--background)" }}>
@@ -683,75 +758,7 @@ export default function ComparisonReportPage() {
 
   if (!report?.content) return null;
 
-  const sections = parseSections(report.content);
   const hasScoreBars = report.scores_snapshot && report.comparison_scores_snapshot;
-
-  // Extract partner names from the first section content
-  const nameMatch = report.content.match(/\*\*(.+?) & (.+?)\*\*/);
-  const nameA = nameMatch ? nameMatch[1] : "Partner A";
-  const nameB = nameMatch ? nameMatch[2] : "Partner B";
-
-  // Navigation items from sections with titles — substring match for AI-varied headings
-  // Order matters: more specific matches should come first
-  const sectionShortLabels: [string, string][] = [
-    ["how to read", "How to Read"],
-    // Couples and Friends report (v2 brief-based) — put before generic matches
-    ["chemistry signature", "Chemistry"],
-    ["friendship signature", "Signature"],
-    ["where you overlap", "Overlap"],
-    ["where you align", "Align"],
-    ["where you diverge", "Diverge"],
-    ["how you both think", "Thinking"],
-    ["process the world", "Thinking"],
-    ["what you both value", "Values"],
-    ["value differently", "Values"],
-    ["emotional rhythm", "Emotion"],
-    ["handle emotion", "Emotion"],
-    ["a note to each of you", "Notes"],
-    ["where the friction lives", "Friction"],
-    ["conflict and repair", "Repair"],
-    ["repair and stay-close", "Repair"],
-    ["big decisions compass", "Decisions"],
-    ["drift and transitions", "Transitions"],
-    ["growth edges", "Growth"],
-    ["conversation prompts", "Prompts"],
-    ["methodology and sources", "Sources"],
-    // Co-founders
-    ["compatibility score", "Compatibility"],
-    ["know about", "Your Co-Founder"],
-    ["success factor", "Success"],
-    ["success", "Success"],
-    ["co-founder", "Co-Founder"],
-    ["under pressure", "Pressure"],
-    ["mitigation", "Mitigations"],
-    ["pitch", "Pitches"],
-    ["48 dimension", "Comparison"],
-    ["what now", "What Now?"],
-    ["what comes next", "What Next?"],
-    // Couples report (legacy)
-    ["relationship success", "Relationship"],
-    ["relationship playbook", "Playbook"],
-    // Friends report
-    ["friendship profile", "Profile"],
-    ["where you click", "Click"],
-    ["butt heads", "Friction"],
-    ["conversation starter", "Starters"],
-    ["conversation", "Conversations"],
-    ["friend you need", "The Friend"],
-  ];
-  function getShortLabel(title: string): string {
-    const lower = title.toLowerCase();
-    for (const [substring, label] of sectionShortLabels) {
-      if (lower.includes(substring)) return label;
-    }
-    return title;
-  }
-  const navItems = sections
-    .map((s, i) => ({ ...s, idx: i }))
-    .filter((s) => s.title)
-    .map((s) => {
-      return { label: getShortLabel(s.title), idx: s.idx, id: s.id };
-    });
 
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
@@ -790,7 +797,7 @@ export default function ComparisonReportPage() {
                   style={{ background: "linear-gradient(to right, var(--background) 60%, transparent)" }}
                   aria-label="Scroll nav left"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                 </button>
               )}
               {/* Right arrow */}
@@ -801,7 +808,7 @@ export default function ComparisonReportPage() {
                   style={{ background: "linear-gradient(to left, var(--background) 60%, transparent)" }}
                   aria-label="Scroll nav right"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 </button>
               )}
               <div ref={navRef} className="flex gap-1.5 overflow-x-auto scrollbar-hide">

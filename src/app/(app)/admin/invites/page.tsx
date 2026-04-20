@@ -121,8 +121,9 @@ export default async function AdminInvitesPage() {
           </p>
           <p className="text-xs text-[var(--muted)]">Sorted by activity</p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="relative">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-[var(--beige-light)]">
               <tr className="text-xs uppercase tracking-wide text-[var(--muted)]">
                 <th className="px-4 py-2 text-left font-medium">User</th>
@@ -172,6 +173,12 @@ export default async function AdminInvitesPage() {
               )}
             </tbody>
           </table>
+          </div>
+          {/* Right-edge fade hint that the table scrolls horizontally. Hidden on wider viewports. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent md:hidden"
+          />
         </div>
       </div>
 

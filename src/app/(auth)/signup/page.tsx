@@ -140,7 +140,7 @@ function SignupPage() {
 
         {inviteFromName && (
           <div
-            className="rounded-2xl border p-4 mb-5 flex gap-3 items-start"
+            className="rounded-2xl border p-4 mb-5 flex flex-col sm:flex-row gap-3 items-center sm:items-start text-center sm:text-left"
             style={{ borderColor: "var(--primary)", backgroundColor: "var(--primary-light)" }}
           >
             <div

@@ -107,7 +107,7 @@ function ScoreBar({
   onToggle: () => void;
 }) {
   return (
-    <div className="px-5 py-3 cursor-pointer hover:bg-[#FAFAF8] transition-colors" onClick={onToggle}>
+    <div className="px-5 py-4 sm:py-3 cursor-pointer hover:bg-[#FAFAF8] transition-colors" onClick={onToggle}>
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2.5 min-w-0">
           <span
