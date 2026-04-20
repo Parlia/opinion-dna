@@ -55,6 +55,16 @@ function SignupPage() {
     };
   }, [searchParams]);
 
+  // Preserve any ?next=... from the signup URL through the auth redirect flow.
+  // This is critical for invited users: without this, the email-confirmation
+  // click and the OAuth return land on /callback without a next param, so the
+  // user is dropped on /dashboard and the invite never gets marked accepted.
+  function buildCallbackUrl(): string {
+    const rawNext = searchParams.get("next");
+    const base = `${window.location.origin}/callback`;
+    return rawNext ? `${base}?next=${encodeURIComponent(rawNext)}` : base;
+  }
+
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -68,7 +78,7 @@ function SignupPage() {
         data: {
           full_name: name,
         },
-        emailRedirectTo: `${window.location.origin}/callback`,
+        emailRedirectTo: buildCallbackUrl(),
       },
     });
 
@@ -85,7 +95,7 @@ function SignupPage() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/callback`,
+        redirectTo: buildCallbackUrl(),
         queryParams: { prompt: "select_account" },
       },
     });
