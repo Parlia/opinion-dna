@@ -1,19 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function SignupPage() {
+export default function SignupPageWrapper() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[var(--background)] flex items-center justify-center px-4">
+          <div className="w-full max-w-md text-center text-[var(--muted)]">
+            Loading...
+          </div>
+        </div>
+      }
+    >
+      <SignupPage />
+    </Suspense>
+  );
+}
+
+function SignupPage() {
+  const searchParams = useSearchParams();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [inviteFromName, setInviteFromName] = useState<string | null>(null);
   const router = useRouter();
+
+  // If signup was reached via an invite link, fetch the inviter's name
+  // so we can show contextual copy.
+  useEffect(() => {
+    const nextParam = searchParams.get("next") || "";
+    const tokenMatch = nextParam.match(/token=([a-f0-9]+)/);
+    if (!tokenMatch) return;
+    const token = tokenMatch[1];
+
+    let cancelled = false;
+    fetch(`/api/invite/info?token=${encodeURIComponent(token)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.fromName) setInviteFromName(data.fromName);
+      })
+      .catch(() => {
+        /* ignore — fall back to generic signup */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -72,19 +112,43 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--background)] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[var(--background)] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
             <Image src="/logo.png" alt="Opinion DNA" width={180} height={36} priority className="mx-auto" />
           </Link>
           <h1 className="mt-6 text-2xl font-semibold text-[var(--foreground)]">
-            Create your account
+            {inviteFromName ? `Join ${inviteFromName} on Opinion DNA` : "Create your account"}
           </h1>
           <p className="mt-2 text-[var(--muted)]">
-            Start your psychographic assessment
+            {inviteFromName
+              ? "Take your own assessment to compare results"
+              : "Start your psychographic assessment"}
           </p>
         </div>
+
+        {inviteFromName && (
+          <div
+            className="rounded-2xl border p-4 mb-5 flex gap-3 items-start"
+            style={{ borderColor: "var(--primary)", backgroundColor: "var(--primary-light)" }}
+          >
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm shrink-0"
+              style={{ backgroundColor: "var(--primary)", color: "white" }}
+            >
+              {inviteFromName.charAt(0).toUpperCase()}
+            </div>
+            <div className="text-sm text-[var(--foreground)] leading-relaxed">
+              <p>
+                <strong>{inviteFromName}</strong> has taken the Opinion DNA assessment and wants to compare results with you.
+              </p>
+              <p className="mt-1 text-[var(--muted)]">
+                Create an account to continue — you&apos;ll take your own 179-question assessment ($47, 10-15 minutes). Once you&apos;re done, you&apos;ll both see how your minds compare.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-sm border border-[var(--border)] p-8">
           <button

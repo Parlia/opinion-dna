@@ -20,7 +20,7 @@ import {
   buildCouplesCall2SystemPrompt,
   buildCouplesCall2UserPrompt,
 } from "@/lib/report/comparison-prompt";
-import { sendScorecardEmail } from "@/lib/email/scorecard";
+import { sendScorecardEmail, type ReportRelationshipType } from "@/lib/email/scorecard";
 import { rateLimit } from "@/lib/auth/rate-limit";
 
 export const maxDuration = 300;
@@ -226,6 +226,21 @@ export async function POST(request: Request) {
         compatibility_score: compatibility.score,
       }).eq("id", inviteId);
 
+      // Scorecard emails (friends: no score displayed, but still notify both)
+      await sendScorecardEmailsToBoth({
+        admin,
+        fromUserId: invite.from_user_id,
+        toUserId: invite.to_user_id,
+        nameA,
+        nameB,
+        reportId: report.id,
+        compatibilityScore: compatibility.score,
+        label: compatibility.label,
+        topStrengths: [],
+        topFriction: "",
+        relationshipType: "friends",
+      });
+
       return NextResponse.json({ reportId: report.id, status: "completed", score: compatibility.score });
     }
 
@@ -302,6 +317,21 @@ export async function POST(request: Request) {
         comparison_report_id: report.id,
         compatibility_score: compatibility.score,
       }).eq("id", inviteId);
+
+      // Scorecard emails
+      await sendScorecardEmailsToBoth({
+        admin,
+        fromUserId: invite.from_user_id,
+        toUserId: invite.to_user_id,
+        nameA,
+        nameB,
+        reportId: report.id,
+        compatibilityScore: compatibility.score,
+        label: compatibility.label,
+        topStrengths: [],
+        topFriction: "",
+        relationshipType: "couples",
+      });
 
       return NextResponse.json({ reportId: report.id, status: "completed", score: compatibility.score });
     }
@@ -448,33 +478,19 @@ ${scoreRationale}
     const topStrengths = alignedFactors.slice(0, 3).map(f => f.name);
     const topFriction = tensionFactors.length > 0 ? tensionFactors[0].name : "No significant gaps";
 
-    // Get both users' emails
-    const { data: userFrom } = await admin.auth.admin.getUserById(invite.from_user_id);
-    const { data: userTo } = await admin.auth.admin.getUserById(invite.to_user_id);
-
-    if (userFrom?.user?.email) {
-      await sendScorecardEmail(
-        userFrom.user.email,
-        nameB,
-        report.id,
-        compatibility.score,
-        compatibility.label,
-        topStrengths,
-        topFriction
-      ).catch(err => console.error("Scorecard email to A failed:", err));
-    }
-
-    if (userTo?.user?.email) {
-      await sendScorecardEmail(
-        userTo.user.email,
-        nameA,
-        report.id,
-        compatibility.score,
-        compatibility.label,
-        topStrengths,
-        topFriction
-      ).catch(err => console.error("Scorecard email to B failed:", err));
-    }
+    await sendScorecardEmailsToBoth({
+      admin,
+      fromUserId: invite.from_user_id,
+      toUserId: invite.to_user_id,
+      nameA,
+      nameB,
+      reportId: report.id,
+      compatibilityScore: compatibility.score,
+      label: compatibility.label,
+      topStrengths,
+      topFriction,
+      relationshipType: "cofounders",
+    });
 
     return NextResponse.json({ reportId: report.id, status: "completed", score: compatibility.score });
   } catch (error) {
@@ -485,6 +501,59 @@ ${scoreRationale}
       .eq("id", report.id);
 
     return NextResponse.json({ reportId: report.id, status: "failed" }, { status: 500 });
+  }
+}
+
+/**
+ * Send the scorecard "report is ready" email to both partners. The email
+ * content varies by relationship type — Friends doesn't show a score,
+ * Couples and Co-Founders do. Failures are swallowed so an email outage
+ * never breaks report generation.
+ */
+async function sendScorecardEmailsToBoth(params: {
+  admin: ReturnType<typeof createAdminClient>;
+  fromUserId: string;
+  toUserId: string;
+  nameA: string;
+  nameB: string;
+  reportId: string;
+  compatibilityScore: number;
+  label: string;
+  topStrengths: string[];
+  topFriction: string;
+  relationshipType: ReportRelationshipType;
+}) {
+  try {
+    const { data: userFrom } = await params.admin.auth.admin.getUserById(params.fromUserId);
+    const { data: userTo } = await params.admin.auth.admin.getUserById(params.toUserId);
+
+    if (userFrom?.user?.email) {
+      await sendScorecardEmail(
+        userFrom.user.email,
+        params.nameB,
+        params.reportId,
+        params.compatibilityScore,
+        params.label,
+        params.topStrengths,
+        params.topFriction,
+        params.relationshipType,
+      ).catch((err) => console.error("Scorecard email to A failed:", err));
+    }
+
+    if (userTo?.user?.email) {
+      await sendScorecardEmail(
+        userTo.user.email,
+        params.nameA,
+        params.reportId,
+        params.compatibilityScore,
+        params.label,
+        params.topStrengths,
+        params.topFriction,
+        params.relationshipType,
+      ).catch((err) => console.error("Scorecard email to B failed:", err));
+    }
+  } catch (err) {
+    console.error("Scorecard email dispatch failed:", err);
   }
 }
 

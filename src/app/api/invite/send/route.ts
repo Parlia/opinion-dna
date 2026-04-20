@@ -28,8 +28,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Cannot invite yourself" }, { status: 400 });
   }
 
-  // Check if user has a purchase (optional — invites are free, comparison is paid)
   const admin = createAdminClient();
+
+  // Prevent duplicate invites to the same email from the same user.
+  // We only consider active statuses — if the previous invite was cancelled
+  // or declined, allow re-sending.
+  const { data: existing } = await admin
+    .from("invites")
+    .select("id, status")
+    .eq("from_user_id", user.id)
+    .ilike("to_email", email)
+    .in("status", ["pending", "accepted"])
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    const msg = existing.status === "accepted"
+      ? "You've already connected with this person. Check the Joined section on Compare."
+      : "You've already invited this email. Check the Pending section — you can resend the invitation there.";
+    return NextResponse.json({ error: msg, code: "duplicate" }, { status: 409 });
+  }
+
+  // Check if user has a purchase (optional — invites are free, comparison is paid)
   const { data: purchase } = await admin
     .from("purchases")
     .select("id")

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 
 interface Invite {
   id: string;
@@ -62,6 +63,7 @@ export default function ComparePageWrapper() {
 
 function ComparePage() {
   const searchParams = useSearchParams();
+  const toast = useToast();
   const [invites, setInvites] = useState<Invite[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [directReports, setDirectReports] = useState<Array<{ id: string; relationship_type: RelationshipType | null; created_at: string }>>([]);
@@ -71,6 +73,19 @@ function ComparePage() {
   const [pricingLoading, setPricingLoading] = useState<Set<string>>(new Set());
   const [selectingType, setSelectingType] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
+
+  // Toast after an invite was just sent (from /compare/invite?invited=email@...)
+  useEffect(() => {
+    const invited = searchParams.get("invited");
+    if (invited) {
+      toast.success(
+        `Invite sent to ${invited}`,
+        "If they don't see the email within a few minutes, ask them to check their spam folder."
+      );
+      window.history.replaceState({}, "", "/compare");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchPricing = useCallback(async (inviteId: string, type: RelationshipType) => {
     const key = pricingKey(inviteId, type);
@@ -225,12 +240,15 @@ function ComparePage() {
       });
       const result = await res.json();
       if (result.ok) {
-        alert("Invite resent!");
+        toast.success(
+          "Invite resent",
+          "If they don't see it within a few minutes, ask them to check their spam folder."
+        );
       } else {
-        alert(result.error || "Failed to resend");
+        toast.error(result.error || "Failed to resend");
       }
     } catch {
-      alert("Something went wrong.");
+      toast.error("Network error", "Check your connection and try again.");
     }
     setActionLoading(null);
   }
@@ -247,11 +265,12 @@ function ComparePage() {
       const result = await res.json();
       if (result.ok) {
         setInvites(prev => prev.filter(i => i.id !== inviteId));
+        toast.info("Invite cancelled");
       } else {
-        alert(result.error || "Failed to cancel");
+        toast.error(result.error || "Failed to cancel");
       }
     } catch {
-      alert("Something went wrong.");
+      toast.error("Network error", "Check your connection and try again.");
     }
     setActionLoading(null);
   }
@@ -335,27 +354,30 @@ function ComparePage() {
       actionElement = null;
     } else if (typePricing.selectionState === "both_selected") {
       actionElement = (
-        <span className="flex items-center gap-2 text-xs text-[var(--muted)]">
+        <span className="flex items-center gap-2 text-xs text-[var(--muted)]" title="Reports typically take 2-4 minutes to generate.">
           <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          Generating...
+          Generating your report (2-4 min)...
         </span>
       );
     } else if (typePricing.selectionState === "i_selected") {
       actionElement = (
-        <span className="text-xs text-amber-600">Waiting for {partnerName} to confirm</span>
+        <span className="text-xs text-amber-700" title={`You selected ${TYPE_LABELS[type]}. Waiting for ${partnerName} to confirm before we generate the report.`}>
+          Waiting for {partnerName} to confirm
+        </span>
       );
     } else if (typePricing.selectionState === "partner_selected") {
       actionElement = (
         <button
           onClick={() => handleSelectType(invite.id, type)}
           disabled={isSelecting}
+          title={`${partnerName} wants to generate a ${TYPE_LABELS[type]} report. Confirm to continue.`}
           className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50"
           style={{ backgroundColor: "var(--primary)", color: "white" }}
         >
-          {isSelecting ? "Confirming..." : "Confirm"}
+          {isSelecting ? "Confirming..." : `Confirm ${TYPE_LABELS[type]}`}
         </button>
       );
     } else if (typePricing.selectionState === "none" && typePricing.bothAssessed) {
@@ -371,7 +393,9 @@ function ComparePage() {
       );
     } else if (typePricing.selectionState === "none" && !typePricing.bothAssessed) {
       actionElement = (
-        <span className="text-xs text-[var(--muted)]">Waiting for assessment</span>
+        <span className="text-xs text-[var(--muted)]">
+          Waiting for {partnerName} to take their assessment
+        </span>
       );
     }
 

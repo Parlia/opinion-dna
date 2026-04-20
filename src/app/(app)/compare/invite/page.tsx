@@ -23,7 +23,7 @@ export default function InvitePage() {
       });
 
       if (response.ok) {
-        router.push("/compare");
+        router.push(`/compare?invited=${encodeURIComponent(email)}`);
       } else {
         const data = await response.json();
         setError(data.error || "Failed to send invite");

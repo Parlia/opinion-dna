@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
@@ -24,6 +25,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    <ToastProvider>
     <div className="min-h-screen bg-[var(--background)]">
       <header className="bg-white border-b border-[var(--border)]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -89,5 +91,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <main>{children}</main>
     </div>
+    </ToastProvider>
   );
 }
