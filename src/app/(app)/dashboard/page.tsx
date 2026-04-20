@@ -258,10 +258,10 @@ function StepCard({
           : "bg-[var(--beige-light)] border-[var(--border)] opacity-60"
       }`}
     >
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-4 min-w-0">
           <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shrink-0 ${
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium shrink-0 mt-0.5 ${
               completed
                 ? "bg-green-600 text-white"
                 : active
@@ -277,11 +277,11 @@ function StepCard({
               step
             )}
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="font-medium text-[var(--foreground)]">{title}</h3>
             <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
             {progress !== undefined && (
-              <div className="mt-3 w-48">
+              <div className="mt-3 w-full max-w-xs">
                 <div className="h-2 bg-[var(--beige-dark)] rounded-full overflow-hidden">
                   <div
                     className="h-full bg-[var(--primary)] rounded-full transition-all"
@@ -298,7 +298,7 @@ function StepCard({
         {active && (
           <Link
             href={actionHref}
-            className="shrink-0 px-4 py-2 bg-[var(--primary)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+            className="self-start sm:self-auto shrink-0 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
           >
             {actionLabel}
           </Link>
@@ -306,7 +306,7 @@ function StepCard({
         {completed && !active && !hideCompletedAction && (
           <Link
             href={actionHref}
-            className="shrink-0 px-4 py-2 border border-[var(--border)] rounded-xl text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+            className="self-start sm:self-auto shrink-0 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
           >
             {actionLabel}
           </Link>

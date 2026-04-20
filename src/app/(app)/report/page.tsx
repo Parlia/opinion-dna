@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -284,12 +284,13 @@ function CalloutAwareMarkdown({
   );
 }
 
-// Reusable markdown renderer
-function MarkdownBlock({ content, accent }: { content: string; accent: string }) {
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
+// Reusable markdown renderer.
+// Memoized: Reports can be 30-50K chars; react-markdown has to re-parse the
+// whole string on every render. Wrapping in React.memo + useMemo on the
+// components object avoids cascading re-parses when the parent re-renders.
+const REMARK_PLUGINS = [remarkGfm];
+const MarkdownBlock = React.memo(function MarkdownBlock({ content, accent }: { content: string; accent: string }) {
+  const components = useMemo<React.ComponentProps<typeof ReactMarkdown>["components"]>(() => ({
         h1: ({ children }) => (
           <h1 className="text-3xl font-bold text-black mt-0 mb-2">
             {children}
@@ -377,12 +378,15 @@ function MarkdownBlock({ content, accent }: { content: string; accent: string })
             <tr className={isBody ? "even:bg-[#F7F4EE]" : ""}>{children}</tr>
           );
         },
-      }}
-    >
+  }), [accent]);
+
+  return (
+    <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={components}>
       {content}
     </ReactMarkdown>
   );
-}
+});
+MarkdownBlock.displayName = "MarkdownBlock";
 
 // Visual score bars for Part 1
 function ElementRow({ idx, dimKey, scores, explanations }: {

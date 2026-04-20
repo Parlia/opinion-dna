@@ -101,11 +101,14 @@ function ComparePage() {
   }, []);
 
   const fetchAllPricing = useCallback(async (joinedInvites: Invite[]) => {
-    for (const invite of joinedInvites) {
-      for (const type of RELATIONSHIP_TYPES) {
-        await fetchPricing(invite.id, type);
-      }
-    }
+    // Fire all (invite, type) pricing fetches in parallel. With N joined
+    // invites this was doing 3N sequential awaits (~4-5s block for 5 invites);
+    // Promise.all cuts wall time to the slowest single call.
+    await Promise.all(
+      joinedInvites.flatMap((invite) =>
+        RELATIONSHIP_TYPES.map((type) => fetchPricing(invite.id, type)),
+      ),
+    );
   }, [fetchPricing]);
 
   // Auto-trigger select-type after successful Stripe checkout redirect
@@ -374,7 +377,7 @@ function ComparePage() {
           onClick={() => handleSelectType(invite.id, type)}
           disabled={isSelecting}
           title={`${partnerName} wants to generate a ${TYPE_LABELS[type]} report. Confirm to continue.`}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50"
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[40px]"
           style={{ backgroundColor: "var(--primary)", color: "white" }}
         >
           {isSelecting ? "Confirming..." : `Confirm ${TYPE_LABELS[type]}`}
@@ -385,7 +388,7 @@ function ComparePage() {
         <button
           onClick={() => handleSelectType(invite.id, type)}
           disabled={isSelecting}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50"
+          className="px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[40px]"
           style={{ backgroundColor: "var(--primary)", color: "white" }}
         >
           {isSelecting ? "..." : "Select"}
@@ -428,7 +431,7 @@ function ComparePage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}>
             Compare
@@ -439,7 +442,7 @@ function ComparePage() {
         </div>
         <Link
           href="/compare/invite"
-          className="px-4 py-2 bg-[var(--primary)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+          className="self-start sm:self-auto shrink-0 px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
         >
           Invite Someone
         </Link>
@@ -456,21 +459,21 @@ function ComparePage() {
           ) : (
             <div className="bg-white rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
               {pending.map((invite) => (
-                <div key={invite.id} className="px-6 py-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm" style={{ backgroundColor: "var(--beige-light)", color: "var(--muted)" }}>
+                <div key={invite.id} className="px-4 py-4 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm" style={{ backgroundColor: "var(--beige-light)", color: "var(--muted)" }}>
                       {invite.to_email.charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <p className="font-medium text-[var(--foreground)]">{invite.to_email}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium text-[var(--foreground)] truncate">{invite.to_email}</p>
                       <p className="text-sm text-[var(--muted)]">Invited {new Date(invite.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
                     <button
                       onClick={() => handleResend(invite.id)}
                       disabled={actionLoading === `resend-${invite.id}`}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-50"
+                      className="px-4 py-2.5 rounded-lg text-sm font-medium border transition-all disabled:opacity-50"
                       style={{ borderColor: "var(--border)", color: "var(--primary)" }}
                     >
                       {actionLoading === `resend-${invite.id}` ? "Sending..." : "Resend"}
@@ -478,7 +481,7 @@ function ComparePage() {
                     <button
                       onClick={() => handleCancel(invite.id)}
                       disabled={actionLoading === `cancel-${invite.id}`}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-50 text-red-500 border-red-200 hover:bg-red-50"
+                      className="px-4 py-2.5 rounded-lg text-sm font-medium border transition-all disabled:opacity-50 text-red-500 border-red-200 hover:bg-red-50"
                     >
                       {actionLoading === `cancel-${invite.id}` ? "Cancelling..." : "Cancel"}
                     </button>
@@ -499,24 +502,25 @@ function ComparePage() {
           ) : (
             <div className="bg-white rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
               {joinedWithPending.map((invite) => (
-                <div key={invite.id} className="px-6 py-5">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm" style={{ backgroundColor: "var(--beige-dark)", color: "var(--foreground)" }}>
+                <div key={invite.id} className="px-4 py-5 sm:px-6">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center font-semibold text-sm" style={{ backgroundColor: "var(--beige-dark)", color: "var(--foreground)" }}>
                       {getDisplayName(invite).charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <p className="font-medium text-[var(--foreground)]">{getDisplayName(invite)}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium text-[var(--foreground)] truncate">{getDisplayName(invite)}</p>
                       <p className="text-sm text-[var(--muted)]">Joined {new Date(invite.updated_at).toLocaleDateString()}</p>
                     </div>
                   </div>
 
-                  {/* Per-type rows */}
-                  <div className="mt-3 pl-14 space-y-0 divide-y divide-[var(--border)]">
+                  {/* Per-type rows. Indent matches avatar on wider screens,
+                      but on mobile drop the indent so there's room for the action. */}
+                  <div className="mt-3 sm:pl-14 space-y-0 divide-y divide-[var(--border)]">
                     {RELATIONSHIP_TYPES.map(type => renderTypeRow(invite, type))}
                   </div>
 
                   {generateError && (
-                    <div className="mt-3 ml-14 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="mt-3 sm:ml-14 p-3 bg-red-50 border border-red-200 rounded-lg">
                       <p className="text-sm text-red-700">{generateError}</p>
                       <button
                         onClick={() => setGenerateError(null)}
@@ -542,13 +546,13 @@ function ComparePage() {
           ) : (
             <div className="bg-white rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
               {completedEntries.map(({ invite, type, reportId, score, displayName }) => (
-                <div key={`${invite?.id ?? "direct"}_${reportId}_${type}`} className="px-6 py-5 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style={{ backgroundColor: "var(--primary)" }}>
+                <div key={`${invite?.id ?? "direct"}_${reportId}_${type}`} className="px-4 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white font-semibold text-sm" style={{ backgroundColor: "var(--primary)" }}>
                       {displayName.charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <p className="font-medium text-[var(--foreground)]">
+                    <div className="min-w-0">
+                      <p className="font-medium text-[var(--foreground)] truncate">
                         {displayName}
                         <span className="ml-2 text-xs font-normal text-[var(--muted)]">{TYPE_LABELS[type]}</span>
                       </p>
@@ -561,7 +565,7 @@ function ComparePage() {
                   </div>
                   <Link
                     href={`/compare/${reportId}`}
-                    className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+                    className="self-end sm:self-auto shrink-0 px-4 py-2.5 bg-[var(--primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
                   >
                     View Report
                   </Link>

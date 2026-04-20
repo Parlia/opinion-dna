@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -271,10 +271,12 @@ function CalloutAwareMarkdown({ content, accent, sectionTitle }: { content: stri
 
 // ── Markdown Renderer ───────────────────────────────────────────────────────
 
-function MarkdownBlock({ content, accent }: { content: string; accent: string }) {
-  return (
-    <ReactMarkdown
-      components={{
+// Memoized: reports are 25-40K chars and react-markdown has to re-parse the
+// whole string on every render. With the inline components object, the parent
+// mounting/re-rendering caused cascading re-parses. Wrapping in React.memo +
+// useMemo on the components object cuts most of that.
+const MarkdownBlock = React.memo(function MarkdownBlock({ content, accent }: { content: string; accent: string }) {
+  const components = useMemo<React.ComponentProps<typeof ReactMarkdown>["components"]>(() => ({
         h1: ({ children }) => (
           <h1 className="text-3xl font-bold text-black mt-0 mb-2">{children}</h1>
         ),
@@ -344,12 +346,15 @@ function MarkdownBlock({ content, accent }: { content: string; accent: string })
             </td>
           );
         },
-      }}
-    >
+  }), [accent]);
+
+  return (
+    <ReactMarkdown components={components}>
       {content}
     </ReactMarkdown>
   );
-}
+});
+MarkdownBlock.displayName = "MarkdownBlock";
 
 // ── Dimension Name Row + Expandable Explanation ─────────────────────────────
 
@@ -407,13 +412,16 @@ function DimensionElement({ idx, dimKey, scoresA, scoresB, nameA, nameB }: {
   };
   const style = toneStyles[explanation.tone];
 
+  const firstNameA = (nameA || "Partner A").split(" ")[0];
+  const firstNameB = (nameB || "Partner B").split(" ")[0];
+
   return (
     <div
       className="px-3 py-3 cursor-pointer hover:bg-[#FAFAF8] transition-colors"
       onClick={() => setOpen(!open)}
     >
-      {/* Mirrored bar layout: A ← [icon] → B */}
-      <div className="flex items-center gap-0">
+      {/* Desktop: mirrored A ← [icon] → B bar layout */}
+      <div className="hidden sm:flex items-center gap-0">
         <span className="text-[11px] font-bold w-7 text-right shrink-0" style={{ color: scoreColor(dimKey, a) }}>{a}</span>
         <div className="flex-1 flex justify-end">
           <div className="w-full h-3 bg-[#F0ECE4] rounded-l-full overflow-hidden relative" style={{ direction: "rtl" }}>
@@ -433,7 +441,49 @@ function DimensionElement({ idx, dimKey, scoresA, scoresB, nameA, nameB }: {
         <span className="text-[11px] font-bold w-7 text-left shrink-0" style={{ color: scoreColor(dimKey, b) }}>{b}</span>
       </div>
 
-      <DimensionRow element={el} gap={gap} gapCol={gapCol} open={open} />
+      {/* Mobile: stacked layout — icon badge on top, then one full-width bar per partner */}
+      <div className="sm:hidden">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ backgroundColor: color }}>
+            {el.code}
+          </span>
+          <span className="text-sm font-medium text-[#222]">{el.name}</span>
+          {gap > 15 && (
+            <span className="ml-auto text-[11px] font-bold" style={{ color: gapCol }}>differential: {gap}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-[11px] text-[#888] w-16 truncate">{firstNameA}</span>
+          <span className="text-[11px] font-bold w-7 text-right shrink-0" style={{ color: scoreColor(dimKey, a) }}>{a}</span>
+          <div className="flex-1 h-2 bg-[#F0ECE4] rounded-full overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${a}%`, backgroundColor: scoreColor(dimKey, a) }} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-[#888] w-16 truncate">{firstNameB}</span>
+          <span className="text-[11px] font-bold w-7 text-right shrink-0" style={{ color: scoreColor(dimKey, b) }}>{b}</span>
+          <div className="flex-1 h-2 bg-[#F0ECE4] rounded-full overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${b}%`, backgroundColor: scoreColor(dimKey, b) }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Element name + differential + chevron (desktop only — mobile has this info above) */}
+      <div className="hidden sm:block">
+        <DimensionRow element={el} gap={gap} gapCol={gapCol} open={open} />
+      </div>
+
+      {/* Chevron for mobile (element name is already shown above) */}
+      <div className="sm:hidden mt-2 flex justify-center">
+        <svg
+          className={`w-4 h-4 text-[#bbb] transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
 
       {/* Smooth expand/collapse via grid-template-rows trick */}
       <div
