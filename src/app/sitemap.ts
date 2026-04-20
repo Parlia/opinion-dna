@@ -4,7 +4,7 @@ import { useCases } from "@/data/seo/use-cases";
 import { keywordPages } from "@/data/seo/keywords";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://opiniondna.com";
+  const baseUrl = "https://www.opiniondna.com";
 
   const staticPages: MetadataRoute.Sitemap = [
     {

@@ -885,7 +885,7 @@ function GeneratingView() {
   );
 }
 
-const SHARE_URL = "https://opiniondna.com";
+const SHARE_URL = "https://www.opiniondna.com";
 const SHARE_TEXT = "I just took the Opinion DNA assessment — 48 dimensions of how I think, what I value, and how my mind works. Fascinating.";
 
 function ShareWhileYouWait({ title, subtitle }: { title?: string; subtitle?: string } = {}) {

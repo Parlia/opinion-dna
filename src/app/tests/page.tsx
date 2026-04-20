@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "Personality Tests and Assessments — Opinion DNA",
   description:
     "Explore the most comprehensive personality, values, and thinking style assessments. 48 dimensions, AI-generated reports, and peer-reviewed science from Oxford, Cambridge, and NYU.",
-  alternates: { canonical: "https://opiniondna.com/tests" },
+  alternates: { canonical: "https://www.opiniondna.com/tests" },
 };
 
 const tierLabels: Record<number, string> = {

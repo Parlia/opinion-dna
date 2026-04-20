@@ -16,8 +16,8 @@ const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "Opinion DNA",
-  url: "https://opiniondna.com",
-  logo: "https://opiniondna.com/og-image.png",
+  url: "https://www.opiniondna.com",
+  logo: "https://www.opiniondna.com/og-image.png",
   description:
     "Opinion DNA maps your personality, values, and meta-thinking across 48 dimensions.",
   sameAs: [
@@ -39,7 +39,7 @@ const productJsonLd = {
     price: "47.00",
     priceCurrency: "USD",
     availability: "https://schema.org/InStock",
-    url: "https://opiniondna.com",
+    url: "https://www.opiniondna.com",
   },
 };
 

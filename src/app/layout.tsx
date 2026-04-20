@@ -16,7 +16,7 @@ const dmSans = DM_Sans({
   display: "swap",
 });
 
-const SITE_URL = "https://opiniondna.com";
+const SITE_URL = "https://www.opiniondna.com";
 const TITLE = "Opinion DNA® — The most complete map of your mind";
 const DESCRIPTION =
   "Opinion DNA maps your personality, values, and meta-thinking across 48 dimensions to reveal why you believe what you believe, and what to do about it.";
@@ -95,7 +95,7 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebSite",
               name: "Opinion DNA",
-              url: "https://opiniondna.com",
+              url: "https://www.opiniondna.com",
               description:
                 "The most complete map of your mind. 48 dimensions across personality, values, and meta-thinking.",
               potentialAction: {
@@ -103,7 +103,7 @@ export default function RootLayout({
                 target: {
                   "@type": "EntryPoint",
                   urlTemplate:
-                    "https://opiniondna.com/tests?q={search_term_string}",
+                    "https://www.opiniondna.com/tests?q={search_term_string}",
                 },
                 "query-input": "required name=search_term_string",
               },

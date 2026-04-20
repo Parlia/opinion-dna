@@ -8,12 +8,12 @@ export const metadata: Metadata = {
   title: "Referral Program for Therapists, Coaches & Counsellors | Opinion DNA",
   description:
     "Partner with Opinion DNA to offer your clients a 48-dimension psychographic assessment. Commission-based referrals and bulk pricing for therapists, coaches, and counsellors.",
-  alternates: { canonical: "https://opiniondna.com/referrals" },
+  alternates: { canonical: "https://www.opiniondna.com/referrals" },
   openGraph: {
     title: "Referral Program for Therapists, Coaches & Counsellors | Opinion DNA",
     description:
       "Partner with Opinion DNA. Commission-based referrals and bulk pricing for therapists, coaches, and counsellors.",
-    url: "https://opiniondna.com/referrals",
+    url: "https://www.opiniondna.com/referrals",
   },
 };
 

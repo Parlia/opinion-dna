@@ -10,12 +10,12 @@ export const metadata: Metadata = {
   title: "Teams Report | Opinion DNA",
   description:
     "Map your team across 48 dimensions of personality, values, and meta-thinking. Identify blind spots, improve communication, and build a team that thinks better together.",
-  alternates: { canonical: "https://opiniondna.com/teams" },
+  alternates: { canonical: "https://www.opiniondna.com/teams" },
   openGraph: {
     title: "Teams Report | Opinion DNA",
     description:
       "Map your team across 48 dimensions. Identify blind spots, improve communication, and build a team that thinks better together.",
-    url: "https://opiniondna.com/teams",
+    url: "https://www.opiniondna.com/teams",
   },
 };
 

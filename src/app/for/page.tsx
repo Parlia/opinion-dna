@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "Opinion DNA Use Cases — Personal Growth, Coaching, Teams & More",
   description:
     "Discover how Opinion DNA's 48-dimension assessment is used for personal growth, life coaching, couples, career development, teams, and values alignment.",
-  alternates: { canonical: "https://opiniondna.com/for" },
+  alternates: { canonical: "https://www.opiniondna.com/for" },
 };
 
 export default function UseCasesHubPage() {

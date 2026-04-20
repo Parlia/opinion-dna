@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   title: "Compare Opinion DNA to Other Personality Tests",
   description:
     "See how Opinion DNA's 48-dimension assessment compares to 16Personalities, Myers-Briggs, Enneagram, Big Five, Truity, DISC, CliftonStrengths, and VIA Character Strengths.",
-  alternates: { canonical: "https://opiniondna.com/vs" },
+  alternates: { canonical: "https://www.opiniondna.com/vs" },
 };
 
 export default function CompareHubPage() {

@@ -20,7 +20,7 @@ export function Breadcrumbs({ items }: { items: { label: string; href?: string }
       "@type": "ListItem",
       position: i + 1,
       name: item.label,
-      ...(item.href ? { item: `https://opiniondna.com${item.href}` } : {}),
+      ...(item.href ? { item: `https://www.opiniondna.com${item.href}` } : {}),
     })),
   };
 
@@ -73,7 +73,7 @@ export function SEOPageFAQ({ items, pageUrl }: { items: { question: string; answ
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    ...(pageUrl ? { url: `https://opiniondna.com${pageUrl}` } : {}),
+    ...(pageUrl ? { url: `https://www.opiniondna.com${pageUrl}` } : {}),
     mainEntity: items.map((item) => ({
       "@type": "Question",
       name: item.question,

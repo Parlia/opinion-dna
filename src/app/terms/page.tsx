@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Terms of Service",
   description:
     "Terms and conditions for using Opinion DNA. Operated by Jadala Limited, United Kingdom.",
-  alternates: { canonical: "https://opiniondna.com/terms" },
+  alternates: { canonical: "https://www.opiniondna.com/terms" },
 };
 
 export default function TermsOfServicePage() {

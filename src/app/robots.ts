@@ -16,6 +16,6 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: "ClaudeBot", allow: "/" },
       { userAgent: "anthropic-ai", allow: "/" },
     ],
-    sitemap: "https://opiniondna.com/sitemap.xml",
+    sitemap: "https://www.opiniondna.com/sitemap.xml",
   };
 }

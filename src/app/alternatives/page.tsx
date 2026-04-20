@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "Personality Test Alternatives — Compare Your Options",
   description:
     "Find better alternatives to 16Personalities, Myers-Briggs, Enneagram, Big Five, Truity, and DISC. Compare features, pricing, and scientific validation.",
-  alternates: { canonical: "https://opiniondna.com/alternatives" },
+  alternates: { canonical: "https://www.opiniondna.com/alternatives" },
 };
 
 export default function AlternativesHubPage() {

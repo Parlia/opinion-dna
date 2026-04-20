@@ -10,12 +10,12 @@ export const metadata: Metadata = {
   title: "Personal Assessment | Opinion DNA",
   description:
     "The most complete map of your mind. 48 dimensions across Personality, Values, and Meta-Thinking in a single assessment. 179 questions, 10-15 minutes, $47.",
-  alternates: { canonical: "https://opiniondna.com/personal-assessment" },
+  alternates: { canonical: "https://www.opiniondna.com/personal-assessment" },
   openGraph: {
     title: "Personal Assessment | Opinion DNA",
     description:
       "The most complete map of your mind. 48 dimensions in 10-15 minutes. $47.",
-    url: "https://opiniondna.com/personal-assessment",
+    url: "https://www.opiniondna.com/personal-assessment",
   },
 };
 

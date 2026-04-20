@@ -4,11 +4,12 @@ import { updateSession } from "@/lib/supabase/middleware";
 const OLD_HOSTS = ["opinion-dna.com", "www.opinion-dna.com"];
 
 export async function middleware(request: NextRequest) {
-  // 301 redirect old domain → new domain (preserves path + query string)
+  // 301 redirect old domain → canonical www domain (preserves path + query string).
+  // Redirect directly to www to avoid a double hop (old → non-www → www).
   const host = request.headers.get("host")?.replace(/:\d+$/, "") ?? "";
   if (OLD_HOSTS.includes(host)) {
     const url = request.nextUrl.clone();
-    url.host = "opiniondna.com";
+    url.host = "www.opiniondna.com";
     url.port = "";
     url.protocol = "https";
     return NextResponse.redirect(url, 301);

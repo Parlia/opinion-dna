@@ -25,8 +25,8 @@ export async function generateMetadata({
   return {
     title: page.metaTitle,
     description: page.description,
-    alternates: { canonical: `https://opiniondna.com/tests/${slug}` },
-    openGraph: { title: page.metaTitle, description: page.description, url: `https://opiniondna.com/tests/${slug}` },
+    alternates: { canonical: `https://www.opiniondna.com/tests/${slug}` },
+    openGraph: { title: page.metaTitle, description: page.description, url: `https://www.opiniondna.com/tests/${slug}` },
   };
 }
 

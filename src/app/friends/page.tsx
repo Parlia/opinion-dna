@@ -10,12 +10,12 @@ export const metadata: Metadata = {
   title: "Friends Report | Opinion DNA",
   description:
     "Discover what makes your friendship tick. Compare 48 dimensions of personality, values, and meta-thinking with a friend. Free and shareable.",
-  alternates: { canonical: "https://opiniondna.com/friends" },
+  alternates: { canonical: "https://www.opiniondna.com/friends" },
   openGraph: {
     title: "Friends Report | Opinion DNA",
     description:
       "Discover what makes your friendship tick. 48 dimensions compared. Free.",
-    url: "https://opiniondna.com/friends",
+    url: "https://www.opiniondna.com/friends",
   },
 };
 

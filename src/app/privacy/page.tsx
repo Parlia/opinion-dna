@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
     "How Opinion DNA collects, uses, and protects your personal data. Operated by Jadala Limited, United Kingdom.",
-  alternates: { canonical: "https://opiniondna.com/privacy" },
+  alternates: { canonical: "https://www.opiniondna.com/privacy" },
 };
 
 export default function PrivacyPolicyPage() {

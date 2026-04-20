@@ -11,12 +11,12 @@ export const metadata: Metadata = {
   title: "Why We Think What We Think — The Book Behind Opinion DNA",
   description:
     "Explore the research behind Opinion DNA. 'Why We Think What We Think' by Turi Munthe reveals how genetics, geography, and biology shape our beliefs — and why we disagree.",
-  alternates: { canonical: "https://opiniondna.com/book" },
+  alternates: { canonical: "https://www.opiniondna.com/book" },
   openGraph: {
     title: "Why We Think What We Think — The Book Behind Opinion DNA",
     description:
       "Explore the research behind Opinion DNA. By Turi Munthe, published by Penguin.",
-    url: "https://opiniondna.com/book",
+    url: "https://www.opiniondna.com/book",
   },
 };
 

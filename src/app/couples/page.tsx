@@ -11,12 +11,12 @@ export const metadata: Metadata = {
   title: "Couples Report | Opinion DNA",
   description:
     "Compare your Opinion DNA with your partner across 48 dimensions of personality, values, and meta-thinking. Understand where you align, where you differ, and why it matters.",
-  alternates: { canonical: "https://opiniondna.com/couples" },
+  alternates: { canonical: "https://www.opiniondna.com/couples" },
   openGraph: {
     title: "Couples Report | Opinion DNA",
     description:
       "Compare your Opinion DNA with your partner across 48 dimensions. Understand alignment, differences, and how to grow together.",
-    url: "https://opiniondna.com/couples",
+    url: "https://www.opiniondna.com/couples",
   },
 };
 

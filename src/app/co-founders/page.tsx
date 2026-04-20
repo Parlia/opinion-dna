@@ -10,12 +10,12 @@ export const metadata: Metadata = {
   title: "Co-Founders Report | Opinion DNA",
   description:
     "Compare co-founder compatibility across 48 dimensions of personality, values, and meta-thinking. Understand alignment before it becomes a problem.",
-  alternates: { canonical: "https://opiniondna.com/co-founders" },
+  alternates: { canonical: "https://www.opiniondna.com/co-founders" },
   openGraph: {
     title: "Co-Founders Report | Opinion DNA",
     description:
       "Compare co-founder compatibility across 48 dimensions. Understand alignment before it becomes a problem.",
-    url: "https://opiniondna.com/co-founders",
+    url: "https://www.opiniondna.com/co-founders",
   },
 };
 
