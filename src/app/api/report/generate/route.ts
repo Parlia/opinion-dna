@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { buildSystemPrompt, buildUserPrompt, buildCoverSection, buildPart1Tables } from "@/lib/report/prompt";
+import {
+  buildCoverSection,
+  buildPart1Tables,
+  buildPartialSystemPrompt,
+  buildPartialUserPrompt,
+  type ReportSection,
+} from "@/lib/report/prompt";
 import { PARLIA_AVERAGES } from "@/lib/scoring/elements";
 import { hasPurchase } from "@/lib/auth/require-purchase";
 import { rateLimit } from "@/lib/auth/rate-limit";
@@ -53,19 +59,31 @@ export async function POST() {
 
   try {
     const userName = user.user_metadata?.full_name || "the individual";
-    const systemPrompt = buildSystemPrompt();
-    const userPrompt = buildUserPrompt(
-      userName,
-      userScores.scores,
-      PARLIA_AVERAGES,
-      1500 // Parlia dataset size
+    const apiKey = process.env.ANTHROPIC_API_KEY!;
+
+    // Split the ~7,000-10,000 word report across 3 parallel Opus calls along
+    // natural section boundaries. This keeps Opus quality while fitting in
+    // the 300s Vercel function timeout — each call is ~2,000-3,500 words and
+    // they run concurrently, so total wall time is max(call_durations).
+    const groups: ReportSection[][] = [
+      ["P2", "P3"], // Life & Happiness + Relationships
+      ["P4", "P5"], // Career + Cognitive Signature
+      ["P6"],       // 48 Elements Explained (the longest single section)
+    ];
+
+    const pieces = await Promise.all(
+      groups.map((parts) =>
+        streamClaude(
+          apiKey,
+          buildPartialSystemPrompt(parts),
+          buildPartialUserPrompt(userName, userScores.scores, PARLIA_AVERAGES, 1500, parts),
+        ),
+      ),
     );
 
-    const aiContent = await streamClaude(
-      process.env.ANTHROPIC_API_KEY!,
-      systemPrompt,
-      userPrompt
-    );
+    // Concatenate with "---" dividers between groups (divider between parts
+    // within a group is already in Claude's output per the prompt).
+    const aiContent = pieces.map((p) => p.trim()).join("\n\n---\n\n");
 
     // Prepend static cover page + Part 1 (code-generated, not AI-generated)
     const coverSection = buildCoverSection(userName);

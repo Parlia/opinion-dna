@@ -218,3 +218,86 @@ ${scoreSummary}
 
 Generate Parts 2 through 6 only. Start directly with "## Part 2: Life & Happiness Insight". Follow the template structure exactly. Include "---" dividers between parts. Do NOT include Part 1, a cover page, "How to Read", or a "What Now?" section; those are handled separately.`;
 }
+
+// ── Split-generation helpers ────────────────────────────────────────────────
+// The full report is 7,000-10,000 words, which can exceed Vercel's 300s function
+// timeout when generated in a single Opus call. To keep Opus quality without
+// hitting timeouts, we split generation into parallel calls along natural seams:
+//
+//   Call A: Parts 2 + 3 (Life & Happiness + Relationships) — ~2,000 words
+//   Call B: Parts 4 + 5 (Career + Cognitive Signature)     — ~2,000 words
+//   Call C: Part 6 (48 Elements Explained)                 — ~3,500 words
+//
+// Each call uses the same voice rules (buildSystemPrompt) and gets the full
+// score context so cross-references still land. We assemble the three pieces
+// in order after the calls return.
+
+export type ReportSection = "P2" | "P3" | "P4" | "P5" | "P6";
+
+const SECTION_INSTRUCTIONS: Record<ReportSection, string> = {
+  P2: `### Part 2: Life & Happiness Insight
+Structure: Your Emotional Baseline (2-3 paras + "For example"), What Drives You (2-3 paras + "For example"), How You See the World (2-3 paras + "For example"), Your Blindspots (1-2 paras), One Key Insight (2-3 sentences), Super Powers (3 named, bold title + explanation), Watch Outs (2-3 named), Tips (2-3 practical).`,
+  P3: `### Part 3: Relationships Insight
+Structure: How You Connect (2-3 paras + "For example"), How You Handle Conflict (2 paras + "For example"), What You Expect from Others (2 paras + "For example"), One Key Insight, Super Powers (3), Watch Outs (2-3), Tips (2-3).`,
+  P4: `### Part 4: Career Insight
+Structure: Your Work Style (2-3 paras + "For example"), Where You Thrive (2 paras + "For example"), Careers & Fields That Fit Your Profile (4-6 areas with score-based reasoning + "What probably won't work"), Leadership & Team Dynamics (2 paras + "For example"), One Key Insight, Super Powers (3), Watch Outs (2-3), Tips (3-4).`,
+  P5: `### Part 5: Your Cognitive Signature
+Structure: How Your Mind Works (2-3 paras + "For example"), Your Biases & Tendencies (2 paras + "For example"), How You Process Disagreement (1-2 paras), One Key Insight, Super Powers (3), Watch Outs (2-3), Tips (2-3).`,
+  P6: `### Part 6: Your 48 Elements Explained
+For each element: **Element Name (Code) — Your score: XX (Average: XX) — LEVEL**
+1-2 sentences on what it measures (original language). 1-3 sentences interpreting this person's score with cross-references. 3-5 sentences max per element. Group under Personality, Values, Meta-Thinking.`,
+};
+
+const SECTION_HEADING: Record<ReportSection, string> = {
+  P2: "## Part 2: Life & Happiness Insight",
+  P3: "## Part 3: Relationships Insight",
+  P4: "## Part 4: Career Insight",
+  P5: "## Part 5: Your Cognitive Signature",
+  P6: "## Part 6: Your 48 Elements Explained",
+};
+
+/**
+ * Build a system prompt that asks for only a subset of the report parts.
+ * Reuses the shared voice / quality / banned-language rules from
+ * buildSystemPrompt() but replaces the Report Structure block with just
+ * the parts requested.
+ */
+export function buildPartialSystemPrompt(parts: ReportSection[]): string {
+  const base = buildSystemPrompt();
+  const structure = parts.map((p) => SECTION_INSTRUCTIONS[p]).join("\n\n");
+  // Swap the full Report Structure block for the subset. The sentinel is the
+  // "## Report Structure" heading, present in every buildSystemPrompt output.
+  return base.replace(
+    /## Report Structure[\s\S]*?(?=## Quality Rules)/,
+    `## Report Structure\n\nYou will generate ONLY these parts:\n\n${structure}\n\n`,
+  );
+}
+
+/**
+ * Build a user prompt that asks Claude for only the specified parts.
+ * The first expected heading is the first part's heading; Claude should
+ * start its output directly with that heading.
+ */
+export function buildPartialUserPrompt(
+  userName: string,
+  scores: number[],
+  averages: (number | null)[] | null,
+  sampleSize: number,
+  parts: ReportSection[],
+): string {
+  const scoreSummary = buildScoreSummary(scores, averages);
+  const firstHeading = SECTION_HEADING[parts[0]];
+  const partList = parts.map((p) => `Part ${p.slice(1)}`).join(", ");
+
+  return `Generate ONLY ${partList} of the Opinion DNA report for ${userName}.
+
+Population sample size: ${sampleSize}
+
+## All 48 Scores (for your reference — use the full set for cross-references, even though you only write the listed parts):
+
+${scoreSummary}
+
+---
+
+Start your output directly with "${firstHeading}". Include "---" dividers between parts if generating more than one. Do NOT include any other parts, a cover page, "How to Read", or a "What Now?" section. Do NOT reintroduce the banned phrases — the voice rules still apply.`;
+}
