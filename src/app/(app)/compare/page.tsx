@@ -554,8 +554,8 @@ function ComparePage() {
                     <div className="min-w-0">
                       <p className="font-medium text-[var(--foreground)] truncate">
                         {displayName}
-                        <span className="ml-2 text-xs font-normal text-[var(--muted)]">{TYPE_LABELS[type]}</span>
                       </p>
+                      <p className="text-xs text-[var(--muted)]">{TYPE_LABELS[type]}</p>
                       {score != null && (
                         <p className="text-sm text-[var(--muted)]">
                           Compatibility Score: <span className="font-semibold" style={{ color: "var(--primary)" }}>{score}</span>
