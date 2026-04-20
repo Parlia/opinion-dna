@@ -1,12 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ToastProvider } from "@/components/ui/Toast";
+import { isAdminEmail } from "@/lib/auth/admin";
 
-const navLinks = [
+const baseNavLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/scores", label: "Scores" },
   { href: "/report", label: "Report" },
@@ -16,6 +18,18 @@ const navLinks = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setIsAdmin(isAdminEmail(data.user?.email));
+    });
+  }, []);
+
+  const navLinks = isAdmin
+    ? [...baseNavLinks, { href: "/admin", label: "Admin" }]
+    : baseNavLinks;
 
   async function handleSignOut() {
     const supabase = createClient();

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 import { createClient } from "@/lib/supabase/client";
 import { ELEMENTS, PARLIA_AVERAGES } from "@/lib/scoring/elements";
 import { getScoreLevel } from "@/lib/scoring/engine";
@@ -289,6 +290,9 @@ function CalloutAwareMarkdown({
 // whole string on every render. Wrapping in React.memo + useMemo on the
 // components object avoids cascading re-parses when the parent re-renders.
 const REMARK_PLUGINS = [remarkGfm];
+// Defence-in-depth: report markdown is AI-generated today, but we plan to add
+// public sharing. rehype-sanitize strips any smuggled <script>/<iframe>/etc.
+const REHYPE_PLUGINS = [rehypeSanitize];
 const MarkdownBlock = React.memo(function MarkdownBlock({ content, accent }: { content: string; accent: string }) {
   const components = useMemo<React.ComponentProps<typeof ReactMarkdown>["components"]>(() => ({
         h1: ({ children }) => (
@@ -381,7 +385,11 @@ const MarkdownBlock = React.memo(function MarkdownBlock({ content, accent }: { c
   }), [accent]);
 
   return (
-    <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={components}>
+    <ReactMarkdown
+      remarkPlugins={REMARK_PLUGINS}
+      rehypePlugins={REHYPE_PLUGINS}
+      components={components}
+    >
       {content}
     </ReactMarkdown>
   );

@@ -37,23 +37,44 @@ export async function POST(request: Request) {
       const inviteId = session.metadata?.invite_id;
       const relationshipType = session.metadata?.relationship_type;
 
-      // Insert the purchase record
-      const { data: purchase } = await supabase.from("purchases").insert({
-        user_id: userId,
-        type: productType,
-        status: "completed",
-        stripe_session_id: session.id,
-        stripe_payment_intent_id:
-          typeof session.payment_intent === "string"
-            ? session.payment_intent
-            : session.payment_intent?.id ?? null,
-        amount_cents: session.amount_total ?? 0,
-      }).select("id").single();
+      // Idempotency: Stripe can redeliver checkout.session.completed for up to
+      // 72h. Migration 012 enforces a unique index on purchases.stripe_session_id,
+      // so a replay surfaces as Postgres error 23505 (unique violation) instead
+      // of a duplicate row. Treat that as success and look up the existing row.
+      const { data: purchase, error: insertError } = await supabase
+        .from("purchases")
+        .insert({
+          user_id: userId,
+          type: productType,
+          status: "completed",
+          stripe_session_id: session.id,
+          stripe_payment_intent_id:
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : session.payment_intent?.id ?? null,
+          amount_cents: session.amount_total ?? 0,
+        })
+        .select("id")
+        .single();
 
-      // If this purchase is linked to an invite, update the invite
-      if (inviteId && purchase) {
+      if (insertError && insertError.code !== "23505") {
+        console.error("[stripe.webhook] purchase insert failed", insertError);
+        return NextResponse.json({ error: "purchase insert failed" }, { status: 500 });
+      }
+
+      let purchaseId = purchase?.id;
+      if (!purchaseId) {
+        const { data: existing } = await supabase
+          .from("purchases")
+          .select("id")
+          .eq("stripe_session_id", session.id)
+          .maybeSingle();
+        purchaseId = existing?.id;
+      }
+
+      if (inviteId && purchaseId) {
         await supabase.from("invites").update({
-          comparison_purchase_id: purchase.id,
+          comparison_purchase_id: purchaseId,
           ...(relationshipType && { relationship_type: relationshipType }),
         }).eq("id", inviteId);
       }

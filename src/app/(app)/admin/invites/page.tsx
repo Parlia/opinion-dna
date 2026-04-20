@@ -2,10 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAdminEmail } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
-
-const ADMIN_EMAIL = "jpaul@neeleyworldwide.com";
 
 interface UserStats {
   userId: string;
@@ -76,7 +75,7 @@ export default async function AdminInvitesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user || user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+  if (!isAdminEmail(user?.email)) {
     notFound();
   }
 

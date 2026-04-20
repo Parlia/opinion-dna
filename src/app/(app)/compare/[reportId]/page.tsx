@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 import { ELEMENTS, PARLIA_AVERAGES } from "@/lib/scoring/elements";
 import { getScoreLevel } from "@/lib/scoring/engine";
 import { getComparisonExplanation } from "@/lib/scoring/dimension-explanations";
@@ -324,6 +325,10 @@ function CalloutAwareMarkdown({ content, accent, sectionTitle }: { content: stri
 
 // ── Markdown Renderer ───────────────────────────────────────────────────────
 
+// Defence-in-depth: report markdown is AI-generated today, but we plan to add
+// public sharing. rehype-sanitize strips any smuggled <script>/<iframe>/etc.
+const REHYPE_PLUGINS = [rehypeSanitize];
+
 // Memoized: reports are 25-40K chars and react-markdown has to re-parse the
 // whole string on every render. With the inline components object, the parent
 // mounting/re-rendering caused cascading re-parses. Wrapping in React.memo +
@@ -402,7 +407,7 @@ const MarkdownBlock = React.memo(function MarkdownBlock({ content, accent }: { c
   }), [accent]);
 
   return (
-    <ReactMarkdown components={components}>
+    <ReactMarkdown rehypePlugins={REHYPE_PLUGINS} components={components}>
       {content}
     </ReactMarkdown>
   );
