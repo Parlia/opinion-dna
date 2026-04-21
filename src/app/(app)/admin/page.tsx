@@ -201,23 +201,25 @@ async function fetchDashboard(): Promise<DashboardData> {
   const completedPurchases = purchases.filter(
     (p) => (p as { status: string }).status === "completed"
   );
-  const sumByPrefix = (prefix: string) =>
+  const sumByType = (type: string) =>
     completedPurchases
-      .filter((p) =>
-        (p as { type: string }).type.startsWith(prefix)
-      )
+      .filter((p) => (p as { type: string }).type === type)
       .reduce((s, p) => s + (p as { amount_cents: number }).amount_cents, 0);
 
-  const personalCents = completedPurchases
-    .filter((p) => (p as { type: string }).type === "personal")
-    .reduce((s, p) => s + (p as { amount_cents: number }).amount_cents, 0);
-  const couplesCents = sumByPrefix("couples");
-  const cofoundersCents = sumByPrefix("cofounders");
+  const personalCents = sumByType("personal");
+  const couplesCents = sumByType("couples_comparison");
+  const cofoundersCents = sumByType("cofounders_comparison");
+  // Pricing was simplified to only _comparison SKUs; the _upgrade enum values
+  // from migration 009 are unused but still legal in the DB. If any ever get
+  // written we'll see them pile up here.
+  const KNOWN_TYPES = new Set([
+    "personal",
+    "couples_comparison",
+    "cofounders_comparison",
+    "friends_comparison",
+  ]);
   const otherComparisonCents = completedPurchases
-    .filter((p) => {
-      const t = (p as { type: string }).type;
-      return t !== "personal" && !t.startsWith("couples") && !t.startsWith("cofounders");
-    })
+    .filter((p) => !KNOWN_TYPES.has((p as { type: string }).type))
     .reduce((s, p) => s + (p as { amount_cents: number }).amount_cents, 0);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const last7DaysCents = completedPurchases

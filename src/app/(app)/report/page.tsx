@@ -154,7 +154,10 @@ function parseSections(content: string) {
 function parseElementExplanations(body: string): Record<string, string> {
   const map: Record<string, string> = {};
   // Split on bold headings like **Openness (O) — Your score: 85 (Average: 78) — VERY HIGH**
-  const parts = body.split(/\*\*[^*]+\(([A-Za-z]{1,3})\)\s*[—–-]\s*Your score[^*]*\*\*/);
+  // Codes are 1–4 letters (longest is "Stim" for Stimulation). The previous
+  // {1,3} cap silently dropped Stimulation, so its explanation got glued onto
+  // the end of Hedonism's block and the Stim row wouldn't expand.
+  const parts = body.split(/\*\*[^*]+\(([A-Za-z]{1,4})\)\s*[—–-]\s*Your score[^*]*\*\*/);
   // parts alternates: [text-before, code1, text-after-1, code2, text-after-2, ...]
   for (let i = 1; i < parts.length; i += 2) {
     const code = parts[i].trim();
