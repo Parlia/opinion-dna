@@ -168,10 +168,33 @@ function ComparePage() {
       // blocks them) but if a row slips through we don't want to show the
       // current user as their own partner.
       const rawInvites = [...(sentInvites ?? []), ...(receivedInvites ?? [])] as Invite[];
-      const allInvites = rawInvites.filter(
+      const noSelfInvites = rawInvites.filter(
         (i) => i.from_user_id !== user.id || i.to_user_id !== user.id
       );
-      setInvites(allInvites);
+
+      // Collapse mutual-invite pairs. If two accepted invites exist between
+      // the same pair of users (each invited the other) we keep only the
+      // oldest — both users deterministically pick the same canonical row,
+      // which keeps comparison_selections / pricing keyed off a stable id.
+      const pending = noSelfInvites.filter((i) => i.status !== "accepted");
+      const accepted = noSelfInvites
+        .filter((i) => i.status === "accepted")
+        .sort((a, b) => a.created_at.localeCompare(b.created_at));
+      const seenPartner = new Set<string>();
+      const dedupedAccepted: Invite[] = [];
+      for (const invite of accepted) {
+        const partnerId =
+          invite.from_user_id === user.id ? invite.to_user_id : invite.from_user_id;
+        if (!partnerId) {
+          dedupedAccepted.push(invite);
+          continue;
+        }
+        if (seenPartner.has(partnerId)) continue;
+        seenPartner.add(partnerId);
+        dedupedAccepted.push(invite);
+      }
+      dedupedAccepted.sort((a, b) => b.created_at.localeCompare(a.created_at));
+      setInvites([...pending, ...dedupedAccepted]);
 
       // Fetch display info (name + email) for every partner. profiles RLS
       // only returns the current user's own row, so we use a dedicated admin

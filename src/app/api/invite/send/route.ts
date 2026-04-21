@@ -49,6 +49,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: msg, code: "duplicate" }, { status: 409 });
   }
 
+  // Reciprocal invite check: if the target (by email) already has an invite
+  // open or accepted FROM them TO the current user, don't create a second one.
+  // Surfaces as "they already invited you" so the sender doesn't end up with
+  // two cards for the same relationship on /compare.
+  const { data: usersPage } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const targetUser = (usersPage?.users ?? []).find(
+    (u) => u.email?.toLowerCase() === email.toLowerCase()
+  );
+  if (targetUser) {
+    const { data: reciprocal } = await admin
+      .from("invites")
+      .select("id, status")
+      .eq("from_user_id", targetUser.id)
+      .eq("to_user_id", user.id)
+      .in("status", ["pending", "accepted"])
+      .limit(1)
+      .maybeSingle();
+    if (reciprocal) {
+      const msg = reciprocal.status === "accepted"
+        ? "This person has already invited you and you've joined them. Check the Joined section on Compare."
+        : "This person has already invited you. Check your email for their invite link, or look in your spam folder.";
+      return NextResponse.json({ error: msg, code: "reciprocal" }, { status: 409 });
+    }
+  }
+
   // Check if user has a purchase (optional — invites are free, comparison is paid)
   const { data: purchase } = await admin
     .from("purchases")
