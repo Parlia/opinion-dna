@@ -33,11 +33,16 @@ interface DashboardData {
     invitesSent: number;
     invitesAccepted: number;
     comparisonsCompleted: number;
+    friendsCompleted: number;
+    couplesCompleted: number;
+    cofoundersCompleted: number;
   };
   revenue: {
     totalCents: number;
     personalCents: number;
-    comparisonCents: number;
+    couplesCents: number;
+    cofoundersCents: number;
+    otherComparisonCents: number;
     last7DaysCents: number;
   };
   recentPurchases: {
@@ -74,7 +79,7 @@ async function fetchDashboard(): Promise<DashboardData> {
       .select("id, from_user_id, to_user_id, status, updated_at"),
     admin
       .from("comparison_selections")
-      .select("selected_by, confirmed_by, report_id, purchase_id, updated_at"),
+      .select("selected_by, confirmed_by, report_id, purchase_id, relationship_type, updated_at"),
   ]);
 
   const authUsers = usersResult.data?.users ?? [];
@@ -170,6 +175,14 @@ async function fetchDashboard(): Promise<DashboardData> {
 
   rows.sort((a, b) => (a.lastActivityAt > b.lastActivityAt ? -1 : 1));
 
+  const completedSelections = selections.filter(
+    (s) => !!(s as { report_id: string | null }).report_id
+  );
+  const countByType = (type: string) =>
+    completedSelections.filter(
+      (s) => (s as { relationship_type: string }).relationship_type === type
+    ).length;
+
   const totals = {
     users: rows.length,
     quizCompleted: rows.filter((r) => r.quizCompleted).length,
@@ -180,16 +193,31 @@ async function fetchDashboard(): Promise<DashboardData> {
     invitesSent: rows.reduce((s, r) => s + r.invitesSent, 0),
     invitesAccepted: rows.reduce((s, r) => s + r.invitesAccepted, 0),
     comparisonsCompleted: rows.reduce((s, r) => s + r.comparisonsCompleted, 0),
+    friendsCompleted: countByType("friends"),
+    couplesCompleted: countByType("couples"),
+    cofoundersCompleted: countByType("cofounders"),
   };
 
   const completedPurchases = purchases.filter(
     (p) => (p as { status: string }).status === "completed"
   );
+  const sumByPrefix = (prefix: string) =>
+    completedPurchases
+      .filter((p) =>
+        (p as { type: string }).type.startsWith(prefix)
+      )
+      .reduce((s, p) => s + (p as { amount_cents: number }).amount_cents, 0);
+
   const personalCents = completedPurchases
     .filter((p) => (p as { type: string }).type === "personal")
     .reduce((s, p) => s + (p as { amount_cents: number }).amount_cents, 0);
-  const comparisonCents = completedPurchases
-    .filter((p) => (p as { type: string }).type !== "personal")
+  const couplesCents = sumByPrefix("couples");
+  const cofoundersCents = sumByPrefix("cofounders");
+  const otherComparisonCents = completedPurchases
+    .filter((p) => {
+      const t = (p as { type: string }).type;
+      return t !== "personal" && !t.startsWith("couples") && !t.startsWith("cofounders");
+    })
     .reduce((s, p) => s + (p as { amount_cents: number }).amount_cents, 0);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const last7DaysCents = completedPurchases
@@ -197,9 +225,11 @@ async function fetchDashboard(): Promise<DashboardData> {
     .reduce((s, p) => s + (p as { amount_cents: number }).amount_cents, 0);
 
   const revenue = {
-    totalCents: personalCents + comparisonCents,
+    totalCents: personalCents + couplesCents + cofoundersCents + otherComparisonCents,
     personalCents,
-    comparisonCents,
+    couplesCents,
+    cofoundersCents,
+    otherComparisonCents,
     last7DaysCents,
   };
 
@@ -302,20 +332,36 @@ export default async function AdminDashboardPage() {
         </div>
       </section>
 
+      {/* Comparisons by type */}
+      <section className="mb-8">
+        <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">
+          Comparisons by type
+        </h2>
+        <div className="grid grid-cols-3 gap-3">
+          <FunnelCard label="Friends (free)" value={data.totals.friendsCompleted} />
+          <FunnelCard label="Couples" value={data.totals.couplesCompleted} />
+          <FunnelCard label="Co-Founders" value={data.totals.cofoundersCompleted} />
+        </div>
+      </section>
+
       {/* Revenue */}
       <section className="mb-8">
         <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">
           Revenue
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <RevenueCard label="Total" value={dollars(data.revenue.totalCents)} />
           <RevenueCard
             label="Personal"
             value={dollars(data.revenue.personalCents)}
           />
           <RevenueCard
-            label="Comparison"
-            value={dollars(data.revenue.comparisonCents)}
+            label="Couples"
+            value={dollars(data.revenue.couplesCents)}
+          />
+          <RevenueCard
+            label="Co-Founders"
+            value={dollars(data.revenue.cofoundersCents)}
           />
           <RevenueCard
             label="Last 7 days"
