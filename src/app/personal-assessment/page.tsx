@@ -160,6 +160,55 @@ export default function PersonalAssessmentPage() {
         </div>
       </section>
 
+      <section className="mt-16">
+        <h2 className="text-2xl md:text-3xl text-black mb-4">
+          Plus: your Cognitive Signature
+        </h2>
+        <p className="text-muted mb-6 max-w-2xl leading-relaxed">
+          One of the most distinctive parts of the report. A Cognitive
+          Signature is the pattern that emerges when your 12 meta-thinking
+          scores are read together — a portrait of <em>how</em> your mind
+          works, not <em>what</em> you believe.
+        </p>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            {
+              title: "How your mind works",
+              description:
+                "Your reasoning style — intuitive or deliberative, abstract or concrete, patient or decisive — and the conditions under which you think best.",
+            },
+            {
+              title: "Your biases & tendencies",
+              description:
+                "The tilts your mind reaches for. Not flaws, but patterns: where you over-weight, where you discount, and what you tend to miss.",
+            },
+            {
+              title: "How you process disagreement",
+              description:
+                "Whether you dig in, update, or reframe when challenged — and what that predicts about the arguments you win, lose, and avoid.",
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              className="bg-white rounded-xl border border-border p-5"
+            >
+              <h3 className="text-base font-semibold text-black mb-2">
+                {item.title}
+              </h3>
+              <p className="text-sm text-foreground leading-relaxed">
+                {item.description}
+              </p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 text-sm text-muted max-w-2xl leading-relaxed">
+          Most personality tests stop at traits. Opinion DNA's Cognitive
+          Signature is the layer most people never see in themselves — and
+          the one that quietly shapes every decision, conversation, and
+          relationship in your life.
+        </p>
+      </section>
+
       <section className="mt-12 bg-white rounded-xl border border-border p-8">
         <h3 className="text-xl text-black mb-4">How it works</h3>
         <ol className="space-y-4">

@@ -5,6 +5,7 @@ import Features from "@/components/landing/Features";
 import HowItWorks from "@/components/landing/HowItWorks";
 import WhatYouGet from "@/components/landing/WhatYouGet";
 import Impact from "@/components/landing/Impact";
+import CognitiveSignature from "@/components/landing/CognitiveSignature";
 import Credibility from "@/components/landing/Credibility";
 import Founders from "@/components/landing/Founders";
 import Testimonials from "@/components/landing/Testimonials";
@@ -97,6 +98,7 @@ export default function Home() {
         <HowItWorks />
         <WhatYouGet />
         <Impact />
+        <CognitiveSignature />
         <Credibility />
         <Founders />
         <Testimonials />
