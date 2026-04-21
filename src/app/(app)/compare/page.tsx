@@ -116,9 +116,28 @@ function ComparePage() {
     const purchaseStatus = searchParams.get("purchase");
     const inviteId = searchParams.get("inviteId");
     const type = searchParams.get("type") as RelationshipType | null;
+    const sessionId = searchParams.get("session_id");
     if (purchaseStatus === "success" && inviteId) {
       window.history.replaceState({}, "", "/compare");
-      handleSelectType(inviteId, type || "cofounders");
+      const finalType = type || "cofounders";
+      (async () => {
+        // Verify the Stripe session synchronously so the purchase is recorded
+        // before we call select-type. Otherwise we race the webhook: select-type
+        // sees no purchase, returns payment_required, and the user gets bounced
+        // back to Stripe instead of landing on "Waiting for partner to confirm".
+        if (sessionId) {
+          try {
+            await fetch("/api/stripe/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ session_id: sessionId }),
+            });
+          } catch (err) {
+            console.error("Purchase verification failed:", err);
+          }
+        }
+        handleSelectType(inviteId, finalType);
+      })();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -200,17 +219,14 @@ function ComparePage() {
 
   async function handleSelectType(inviteId: string, type: RelationshipType) {
     const key = pricingKey(inviteId, type);
-    const typePricing = pricing[key];
-
-    // For paid types where no one has selected yet, redirect to Stripe
-    if (typePricing && !typePricing.isFree && typePricing.selectionState === "none" && typePricing.bothAssessed) {
-      if (typePricing.productId) {
-        window.location.href = `/api/stripe/checkout?product=${typePricing.productId}&inviteId=${inviteId}&relationshipType=${type}`;
-      }
-      return;
-    }
-
-    // For free types (selectionState "none") or confirming (selectionState "partner_selected"), call select-type
+    // Always ask the backend first. It knows:
+    //  - free type → creates the selection
+    //  - paid type WITH purchase → creates the selection
+    //  - paid type NO purchase → returns { status: "payment_required" }
+    // Deciding Stripe-vs-select-type purely from client-side pricing state was
+    // the old bug: after a Stripe redirect the pricing cache was stale, so the
+    // client saw selectionState="none" + !isFree and redirected back to Stripe
+    // in a loop instead of creating the selection row.
     setSelectingType(key);
     setGenerateError(null);
     try {
@@ -220,6 +236,12 @@ function ComparePage() {
         body: JSON.stringify({ inviteId, relationshipType: type }),
       });
       const result = await res.json();
+
+      if (result.status === "payment_required" && result.productId) {
+        window.location.href = `/api/stripe/checkout?product=${result.productId}&inviteId=${inviteId}&relationshipType=${type}`;
+        return;
+      }
+
       if (result.error) {
         setGenerateError(result.error);
       }
