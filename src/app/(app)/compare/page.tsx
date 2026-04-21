@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/Toast";
 
 interface Invite {
   id: string;
+  from_user_id: string;
   to_email: string;
   to_user_id: string | null;
   status: string;
@@ -17,9 +18,9 @@ interface Invite {
   updated_at: string;
 }
 
-interface Profile {
-  id: string;
+interface Participant {
   full_name: string | null;
+  email: string | null;
 }
 
 interface PricingData {
@@ -64,8 +65,9 @@ export default function ComparePageWrapper() {
 function ComparePage() {
   const searchParams = useSearchParams();
   const toast = useToast();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [invites, setInvites] = useState<Invite[]>([]);
-  const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [participants, setParticipants] = useState<Record<string, Participant>>({});
   const [directReports, setDirectReports] = useState<Array<{ id: string; relationship_type: RelationshipType | null; created_at: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -147,39 +149,41 @@ function ComparePage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setCurrentUserId(user.id);
 
       const { data: sentInvites } = await supabase
         .from("invites")
-        .select("id, to_email, to_user_id, status, comparison_report_id, compatibility_score, created_at, updated_at")
+        .select("id, from_user_id, to_email, to_user_id, status, comparison_report_id, compatibility_score, created_at, updated_at")
         .eq("from_user_id", user.id)
         .order("created_at", { ascending: false });
 
       const { data: receivedInvites } = await supabase
         .from("invites")
-        .select("id, to_email, to_user_id, status, comparison_report_id, compatibility_score, created_at, updated_at")
+        .select("id, from_user_id, to_email, to_user_id, status, comparison_report_id, compatibility_score, created_at, updated_at")
         .eq("to_user_id", user.id)
         .eq("status", "accepted")
         .order("created_at", { ascending: false });
 
-      const allInvites = [...(sentInvites ?? []), ...(receivedInvites ?? [])];
+      // Exclude self-invites defensively — they shouldn't exist (send API
+      // blocks them) but if a row slips through we don't want to show the
+      // current user as their own partner.
+      const rawInvites = [...(sentInvites ?? []), ...(receivedInvites ?? [])] as Invite[];
+      const allInvites = rawInvites.filter(
+        (i) => i.from_user_id !== user.id || i.to_user_id !== user.id
+      );
       setInvites(allInvites);
 
-      const userIds = allInvites
-        .filter(i => i.to_user_id)
-        .map(i => i.to_user_id!);
-
-      if (userIds.length > 0) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", userIds);
-
-        const profileMap: Record<string, string> = {};
-        for (const p of (profileData ?? []) as Profile[]) {
-          if (p.full_name) profileMap[p.id] = p.full_name;
-        }
-        setProfiles(profileMap);
-      }
+      // Fetch display info (name + email) for every partner. profiles RLS
+      // only returns the current user's own row, so we use a dedicated admin
+      // endpoint scoped to the current user's actual invite partners.
+      fetch("/api/invite/participants")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.participants) setParticipants(data.participants);
+        })
+        .catch(() => {
+          /* fall back to emails */
+        });
 
       // Fetch completed comparison reports the user directly owns
       // (e.g. seeded example reports that aren't tied to an invite's comparison_selections)
@@ -303,6 +307,27 @@ function ComparePage() {
   const pending = invites.filter(i => i.status === "pending");
   const joined = invites.filter(i => i.status === "accepted");
 
+  // Resolve the "other person" for an invite, regardless of whether the
+  // current user is the sender or the recipient. Previously this always
+  // returned profiles[to_user_id], which for received invites is the current
+  // user themselves — so Turi saw "Turi Munthe" and J. Paul saw "J. Paul
+  // Neeley" next to their own invites.
+  function getDisplayName(invite: Invite): string {
+    const partnerId =
+      currentUserId && invite.from_user_id === currentUserId
+        ? invite.to_user_id
+        : invite.from_user_id;
+    const partner = partnerId ? participants[partnerId] : null;
+    if (partner?.full_name) return partner.full_name;
+    if (partner?.email) return partner.email;
+    // Fall back to the recipient email when we're the sender (partner profile
+    // may not be loaded yet). For received invites we have no plain-text
+    // fallback, so surface a neutral label rather than the current user's
+    // own email.
+    if (currentUserId && invite.from_user_id === currentUserId) return invite.to_email;
+    return "Your invite partner";
+  }
+
   // Build completed list from pricing data where selectionState === "complete"
   const completedEntries: { invite: Invite | null; type: RelationshipType; reportId: string; score: number | null; displayName: string }[] = [];
   const seenReportIds = new Set<string>();
@@ -316,7 +341,7 @@ function ComparePage() {
           type,
           reportId: p.reportId,
           score: p.compatibilityScore,
-          displayName: invite.to_user_id && profiles[invite.to_user_id] ? profiles[invite.to_user_id] : invite.to_email,
+          displayName: getDisplayName(invite),
         });
         seenReportIds.add(p.reportId);
       }
@@ -343,13 +368,6 @@ function ComparePage() {
       return !p || p.selectionState !== "complete";
     });
   });
-
-  function getDisplayName(invite: Invite): string {
-    if (invite.to_user_id && profiles[invite.to_user_id]) {
-      return profiles[invite.to_user_id];
-    }
-    return invite.to_email;
-  }
 
   function renderTypeRow(invite: Invite, type: RelationshipType) {
     const key = pricingKey(invite.id, type);

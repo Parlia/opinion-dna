@@ -45,6 +45,26 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Require that the signed-in user's email matches the invite recipient.
+  // Otherwise the inviter — or anyone holding the token — could accept their
+  // own invite onto the wrong account, which corrupted the /compare join list.
+  if (
+    !user.email ||
+    user.email.toLowerCase() !== invite.to_email.toLowerCase()
+  ) {
+    return NextResponse.redirect(
+      new URL("/dashboard?error=invite_wrong_account", request.url)
+    );
+  }
+
+  // Don't let a user accept their own invite. /api/invite/send already blocks
+  // self-invites, but this is belt-and-braces against bad historical rows.
+  if (invite.from_user_id === user.id) {
+    return NextResponse.redirect(
+      new URL("/dashboard?error=invite_self", request.url)
+    );
+  }
+
   // Accept the invite
   await supabase
     .from("invites")

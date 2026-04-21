@@ -21,8 +21,9 @@ export async function GET(request: Request) {
         await admin
           .from("invites")
           .update({ to_user_id: user.id, status: "accepted" })
-          .eq("to_email", user.email)
-          .eq("status", "pending");
+          .ilike("to_email", user.email)
+          .eq("status", "pending")
+          .neq("from_user_id", user.id); // never auto-accept self-invites
       }
       return NextResponse.redirect(`${origin}${next}`);
     }
