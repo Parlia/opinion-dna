@@ -12,9 +12,11 @@ export async function GET(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.redirect(
-      new URL(`/signup?next=/api/invite/accept?token=${token}`, request.url)
-    );
+    // Encode the whole next URL so the inner ?token= doesn't get parsed as a
+    // top-level query param by the signup page (which was silently dropping it,
+    // leaving the invite stuck at status=pending after the user finished auth).
+    const next = encodeURIComponent(`/api/invite/accept?token=${token}`);
+    return NextResponse.redirect(new URL(`/signup?next=${next}`, request.url));
   }
 
   // Find the invite
