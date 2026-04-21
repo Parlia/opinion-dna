@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
+import { isExampleReportsEmail } from "@/lib/auth/admin";
 
 interface Invite {
   id: string;
@@ -208,17 +209,23 @@ function ComparePage() {
           /* fall back to emails */
         });
 
-      // Fetch completed comparison reports the user directly owns
-      // (e.g. seeded example reports that aren't tied to an invite's comparison_selections)
-      const { data: ownedReports } = await supabase
-        .from("reports")
-        .select("id, relationship_type, created_at")
-        .eq("user_id", user.id)
-        .eq("type", "comparison")
-        .eq("status", "completed")
-        .order("created_at", { ascending: false });
+      // "Example report" cards are only for the dedicated seed account. Other
+      // users shouldn't ever see a detached comparison report labelled as an
+      // example — if one exists on another account (historical seed bug), we
+      // ignore it here and the cleanup SQL removes it from the DB.
+      if (isExampleReportsEmail(user.email)) {
+        const { data: ownedReports } = await supabase
+          .from("reports")
+          .select("id, relationship_type, created_at")
+          .eq("user_id", user.id)
+          .eq("type", "comparison")
+          .eq("status", "completed")
+          .order("created_at", { ascending: false });
 
-      setDirectReports((ownedReports ?? []) as Array<{ id: string; relationship_type: RelationshipType | null; created_at: string }>);
+        setDirectReports((ownedReports ?? []) as Array<{ id: string; relationship_type: RelationshipType | null; created_at: string }>);
+      } else {
+        setDirectReports([]);
+      }
 
       setLoading(false);
     }

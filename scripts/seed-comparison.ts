@@ -228,15 +228,20 @@ async function main() {
   console.log(`Blind spots: ${compatibility.blindSpots.length}`);
   console.log(`Stress tendencies: ${compatibility.stressTendencyA.name} / ${compatibility.stressTendencyB.name}`);
 
-  // Get the first user in the system to attach the report to
-  const { data: users } = await admin.auth.admin.listUsers({ perPage: 1 });
-  if (!users?.users?.length) {
-    console.error("No users found in the database. Sign up first, then run this script.");
+  // Attach to the dedicated example-reports account. Previously this used
+  // the first user in the system, which seeded the example onto whichever
+  // account happened to sort first — we hit that bug in production with
+  // jpaulneeley@gmail.com picking up a seeded Co-Founders example.
+  const EXAMPLE_EMAIL = "jpaulneeley+test@gmail.com";
+  const { data: users } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const testUser = users?.users?.find((u) => u.email?.toLowerCase() === EXAMPLE_EMAIL);
+  if (!testUser) {
+    console.error(`Example-reports account (${EXAMPLE_EMAIL}) not found. Sign that account up first.`);
     process.exit(1);
   }
 
-  const userId = users.users[0].id;
-  console.log(`Attaching to user: ${userId}`);
+  const userId = testUser.id;
+  console.log(`Attaching to ${EXAMPLE_EMAIL} (${userId})`);
 
   // Create the report
   const { data: report, error } = await admin
