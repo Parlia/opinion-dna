@@ -13,7 +13,10 @@ import { hasPurchase } from "@/lib/auth/require-purchase";
 import { rateLimit } from "@/lib/auth/rate-limit";
 import { streamClaude } from "@/lib/report/claude-stream";
 
-export const maxDuration = 300;
+// 800s ceiling requires Fluid Compute to be enabled in the Vercel project
+// settings. Personal-report generation runs multiple Claude calls back-to-back;
+// under load the tail can brush past 300s, so this prevents truncation.
+export const maxDuration = 800;
 export const dynamic = "force-dynamic";
 
 export async function POST() {

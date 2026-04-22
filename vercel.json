@@ -1,7 +1,10 @@
 {
   "functions": {
     "src/app/api/report/generate/route.ts": {
-      "maxDuration": 300
+      "maxDuration": 800
+    },
+    "src/app/api/report/compare/route.ts": {
+      "maxDuration": 800
     },
     "src/app/api/report/pdf/route.ts": {
       "maxDuration": 60

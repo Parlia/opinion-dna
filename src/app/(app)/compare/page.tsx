@@ -37,6 +37,7 @@ interface PricingData {
   partnerHasScores?: boolean;
   selfHasPurchase?: boolean;
   partnerHasPurchase?: boolean;
+  reportGenerationStale?: boolean;
 }
 
 const RELATIONSHIP_TYPES = ["friends", "couples", "cofounders"] as const;
@@ -79,6 +80,7 @@ function ComparePage() {
   const [pricing, setPricing] = useState<Record<string, PricingData>>({});
   const [pricingLoading, setPricingLoading] = useState<Set<string>>(new Set());
   const [selectingType, setSelectingType] = useState<string | null>(null);
+  const [retryingType, setRetryingType] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
   // Toast after an invite was just sent (from /compare/invite?invited=email@...)
@@ -303,6 +305,34 @@ function ComparePage() {
     setSelectingType(null);
   }
 
+  // Retry path for a selection where both parties confirmed but the report
+  // generation lambda died before finishing. Calls /api/report/compare
+  // directly — the lib sweeps the prior stuck "generating" row and tries
+  // again. Long-running (2-4 min) so we keep the loading state visible.
+  async function handleRetryGeneration(inviteId: string, type: RelationshipType) {
+    const key = pricingKey(inviteId, type);
+    setRetryingType(key);
+    setGenerateError(null);
+    try {
+      const res = await fetch("/api/report/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteId, relationshipType: type }),
+      });
+      const result = await res.json();
+      if (result.status === "failed" || result.error) {
+        setGenerateError(
+          result.error || "Report generation failed again. Please try once more or contact support.",
+        );
+      } else {
+        for (const t of RELATIONSHIP_TYPES) fetchPricing(inviteId, t);
+      }
+    } catch {
+      setGenerateError("Network error. Check your connection and try again.");
+    }
+    setRetryingType(null);
+  }
+
   async function handleResend(inviteId: string) {
     setActionLoading(`resend-${inviteId}`);
     try {
@@ -458,6 +488,32 @@ function ComparePage() {
             Waiting for {partnerName} to finish their assessment
           </span>
         );
+      } else if (typePricing.reportGenerationStale) {
+        // The prior generation attempt didn't finish before the lambda
+        // timed out. The spinner would lie forever — offer an explicit
+        // retry instead.
+        const isRetrying = retryingType === key;
+        actionElement = (
+          <button
+            onClick={() => handleRetryGeneration(invite.id, type)}
+            disabled={isRetrying}
+            title="The previous generation attempt timed out. Retrying will try to generate the report again (2-4 min)."
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[40px] flex items-center gap-2"
+            style={{ backgroundColor: "var(--primary)", color: "white" }}
+          >
+            {isRetrying ? (
+              <>
+                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Retrying...
+              </>
+            ) : (
+              "Retry generation"
+            )}
+          </button>
+        );
       } else {
         actionElement = (
           <span className="flex items-center gap-2 text-xs text-[var(--muted)]" title="Reports typically take 2-4 minutes to generate.">
@@ -510,7 +566,6 @@ function ComparePage() {
       // Use score presence (authoritative), falling back to bothAssessed for
       // any endpoint that hasn't been redeployed yet.
       const selfReady = typePricing.selfHasScores ?? typePricing.bothAssessed;
-      const partnerReady = typePricing.partnerHasScores ?? typePricing.bothAssessed;
       if (!selfReady) {
         actionElement = (
           <Link
@@ -519,12 +574,6 @@ function ComparePage() {
           >
             Finish your assessment to select
           </Link>
-        );
-      } else if (!partnerReady) {
-        actionElement = (
-          <span className="text-xs text-[var(--muted)]">
-            Waiting for {partnerName} to finish their assessment
-          </span>
         );
       } else if (typePricing.partnerHasPurchase && !typePricing.selfHasPurchase) {
         // Partner already paid for this report but their selection row hasn't
@@ -554,8 +603,12 @@ function ComparePage() {
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-sm text-[var(--foreground)]">{TYPE_LABELS[type]}</span>
           <span className="text-xs text-[var(--muted)]"> &mdash; </span>
-          {type === "friends" && priceLabel === "Free" ? (
-            <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">Free</span>
+          {priceLabel === "Free" ? (
+            type === "friends" ? (
+              <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">Free</span>
+            ) : (
+              <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Paid</span>
+            )
           ) : (
             <span className="text-xs text-[var(--muted)]">{priceLabel}</span>
           )}

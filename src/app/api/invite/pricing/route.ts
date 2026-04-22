@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { calculateComparisonPrice, type RelationshipType } from "@/lib/stripe/pricing";
+import { STALE_GENERATING_MS } from "@/lib/report/generate-comparison";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +88,7 @@ export async function GET(request: Request) {
   // Get selection state for this (invite, type) pair
   const { data: selection } = await admin
     .from("comparison_selections")
-    .select("id, selected_by, confirmed_by, report_id, compatibility_score")
+    .select("id, selected_by, confirmed_by, confirmed_at, report_id, compatibility_score")
     .eq("invite_id", inviteId)
     .eq("relationship_type", relationshipType)
     .single();
@@ -119,6 +120,16 @@ export async function GET(request: Request) {
     selectionState = "partner_selected";
   }
 
+  // A confirmed selection with no report_id is actively being generated —
+  // unless confirmed_at is older than the Vercel lambda timeout window, in
+  // which case the lambda died and the report will never land on its own.
+  // Flag that state so the UI can offer a retry instead of claiming
+  // "Generating (2-4 min)..." indefinitely.
+  const reportGenerationStale =
+    selectionState === "both_selected" &&
+    !!selection?.confirmed_at &&
+    Date.now() - new Date(selection.confirmed_at).getTime() > STALE_GENERATING_MS;
+
   return NextResponse.json({
     price: result.price,
     isFree: result.isFree,
@@ -132,5 +143,6 @@ export async function GET(request: Request) {
     partnerHasScores,
     selfHasPurchase,
     partnerHasPurchase,
+    reportGenerationStale,
   });
 }
