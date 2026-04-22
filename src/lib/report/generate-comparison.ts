@@ -42,6 +42,19 @@ const LLM_OPTIONS = { model: "claude-opus-4-7", maxTokens: 16000 } as const;
  * Turi Munthe" on the cover while addressing them as "J. Paul" and "Turi"
  * throughout the body.
  */
+/**
+ * Post-generation safety net. Even with the explicit naming rule in every
+ * prompt, Claude occasionally slips a "Partner A" or "Friend B" through —
+ * usually when it's mid-cite of a schema field. This regex rewrites every
+ * such leak to the actual name before the report lands in the DB. Word
+ * boundaries keep possessives intact: "Partner A's" → "<nameA>'s".
+ */
+function scrubSchemaLabels(content: string, nameA: string, nameB: string): string {
+  return content
+    .replace(/\b(?:Partner|Friend) A\b/g, nameA)
+    .replace(/\b(?:Partner|Friend) B\b/g, nameB);
+}
+
 function resolveNames(
   profile: { full_name?: string | null; preferred_name?: string | null } | null,
   fallback: string,
@@ -221,6 +234,13 @@ export async function generateComparisonReport(
         compatibility,
       });
     }
+
+    // Defensive safety net: the prompt tells Claude not to use schema
+    // labels like "Partner A" / "Friend B" in output, but LLMs are
+    // non-deterministic — once every few hundred runs, one leaks through.
+    // Rewrite any leaked labels to the actual names before we save. Word
+    // boundaries preserve possessives ("Partner A's" → "J. Paul's").
+    content = scrubSchemaLabels(content, nameA, nameB);
 
     await admin
       .from("reports")
