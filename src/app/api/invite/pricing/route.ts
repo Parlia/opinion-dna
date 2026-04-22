@@ -88,7 +88,7 @@ export async function GET(request: Request) {
   // Get selection state for this (invite, type) pair
   const { data: selection } = await admin
     .from("comparison_selections")
-    .select("id, selected_by, confirmed_by, confirmed_at, report_id, compatibility_score")
+    .select("id, selected_by, confirmed_by, confirmed_at, report_id, compatibility_score, dismissed_at")
     .eq("invite_id", inviteId)
     .eq("relationship_type", relationshipType)
     .single();
@@ -144,5 +144,6 @@ export async function GET(request: Request) {
     selfHasPurchase,
     partnerHasPurchase,
     reportGenerationStale,
+    dismissed: !!selection?.dismissed_at,
   });
 }

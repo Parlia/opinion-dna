@@ -38,6 +38,7 @@ interface PricingData {
   selfHasPurchase?: boolean;
   partnerHasPurchase?: boolean;
   reportGenerationStale?: boolean;
+  dismissed?: boolean;
 }
 
 const RELATIONSHIP_TYPES = ["friends", "couples", "cofounders"] as const;
@@ -48,6 +49,39 @@ const TYPE_LABELS: Record<RelationshipType, string> = {
   couples: "Couples",
   cofounders: "Co-Founders",
 };
+
+// Icon + color styling per comparison type. Pulled from the brand palette
+// (the homepage orbs + accent colors) so the pills feel native, not stock.
+// bg/text hex pairs are tuned to land just above the AA contrast threshold
+// on the beige app background while staying soft enough for dense use.
+const TYPE_STYLE: Record<RelationshipType, { icon: string; bg: string; fg: string }> = {
+  friends: { icon: "✨", bg: "#FFF2D9", fg: "#8A5A00" },
+  couples: { icon: "💕", bg: "#FFE4EE", fg: "#B3185A" },
+  cofounders: { icon: "🤝", bg: "#ECE4FF", fg: "#4F00D1" },
+};
+
+// Deterministic avatar background color per user. Two different partners
+// in the Joined/Comparison-Results list should read as visually distinct
+// even when both initials happen to collide (Turi, Toby, Tom...). Hash
+// their user_id into a fixed palette so the mapping is stable across
+// sessions — Turi is always violet, Alessandra is always rose, etc.
+const AVATAR_PALETTE = [
+  "#7C3AED", // violet
+  "#EC4899", // rose
+  "#F59E0B", // amber
+  "#10B981", // emerald
+  "#3B82F6", // sky
+  "#EF4444", // coral
+  "#14B8A6", // teal
+  "#8B5CF6", // lilac
+];
+
+function avatarColor(userId: string | null | undefined): string {
+  if (!userId) return AVATAR_PALETTE[0];
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) | 0;
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
 
 function pricingKey(inviteId: string, type: RelationshipType): string {
   return `${inviteId}_${type}`;
@@ -81,6 +115,7 @@ function ComparePage() {
   const [pricingLoading, setPricingLoading] = useState<Set<string>>(new Set());
   const [selectingType, setSelectingType] = useState<string | null>(null);
   const [retryingType, setRetryingType] = useState<string | null>(null);
+  const [dismissingType, setDismissingType] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
   // Toast after an invite was just sent (from /compare/invite?invited=email@...)
@@ -333,6 +368,45 @@ function ComparePage() {
     setRetryingType(null);
   }
 
+  // Hide a type from the Joined list. Persists to
+  // comparison_selections.dismissed_at, so it stays gone on reload and for
+  // the other participant too. Only reachable when selectionState === "none"
+  // (the backend also enforces this).
+  async function handleDismissType(inviteId: string, type: RelationshipType) {
+    const typeLabel = TYPE_LABELS[type];
+    const partnerName = (() => {
+      const invite = invites.find((i) => i.id === inviteId);
+      return invite ? getDisplayName(invite).split(" ")[0] : "them";
+    })();
+    if (!confirm(`Hide the ${typeLabel} comparison with ${partnerName}? You can't undo this from the UI yet.`)) {
+      return;
+    }
+    const key = pricingKey(inviteId, type);
+    setDismissingType(key);
+    try {
+      const res = await fetch("/api/invite/dismiss-type", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteId, relationshipType: type }),
+      });
+      const result = await res.json();
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        // Optimistically mark dismissed so the row disappears immediately —
+        // pricing re-fetch will reconcile if anything raced.
+        setPricing((prev) => ({
+          ...prev,
+          [key]: { ...(prev[key] as PricingData), dismissed: true },
+        }));
+        fetchPricing(inviteId, type);
+      }
+    } catch {
+      toast.error("Network error", "Check your connection and try again.");
+    }
+    setDismissingType(null);
+  }
+
   async function handleResend(inviteId: string) {
     setActionLoading(`resend-${inviteId}`);
     try {
@@ -386,12 +460,16 @@ function ComparePage() {
   // returned profiles[to_user_id], which for received invites is the current
   // user themselves — so Turi saw "Turi Munthe" and J. Paul saw "J. Paul
   // Neeley" next to their own invites.
+  function partnerUserId(invite: Invite): string | null {
+    if (!currentUserId) return invite.to_user_id ?? invite.from_user_id ?? null;
+    return invite.from_user_id === currentUserId
+      ? invite.to_user_id
+      : invite.from_user_id;
+  }
+
   function getDisplayName(invite: Invite): string {
-    const partnerId =
-      currentUserId && invite.from_user_id === currentUserId
-        ? invite.to_user_id
-        : invite.from_user_id;
-    const partner = partnerId ? participants[partnerId] : null;
+    const id = partnerUserId(invite);
+    const partner = id ? participants[id] : null;
     if (partner?.full_name) return partner.full_name;
     if (partner?.email) return partner.email;
     // Fall back to the recipient email when we're the sender (partner profile
@@ -403,7 +481,7 @@ function ComparePage() {
   }
 
   // Build completed list from pricing data where selectionState === "complete"
-  const completedEntries: { invite: Invite | null; type: RelationshipType; reportId: string; score: number | null; displayName: string }[] = [];
+  const completedEntries: { invite: Invite | null; type: RelationshipType; reportId: string; score: number | null; displayName: string; partnerId: string | null }[] = [];
   const seenReportIds = new Set<string>();
   for (const invite of joined) {
     for (const type of RELATIONSHIP_TYPES) {
@@ -416,6 +494,7 @@ function ComparePage() {
           reportId: p.reportId,
           score: p.compatibilityScore,
           displayName: getDisplayName(invite),
+          partnerId: partnerUserId(invite),
         });
         seenReportIds.add(p.reportId);
       }
@@ -431,15 +510,19 @@ function ComparePage() {
       reportId: report.id,
       score: null,
       displayName: "Example report",
+      partnerId: null,
     });
   }
 
   // Filter joined to only show invites that have at least one non-complete type
+  // Keep an invite in Joined if at least one type still needs attention —
+  // i.e. not completed and not dismissed. Pricing may not have loaded yet
+  // for a type, in which case treat it as needing attention (render the
+  // skeleton/loading state rather than hiding the whole invite).
   const joinedWithPending = joined.filter(invite => {
     return RELATIONSHIP_TYPES.some(type => {
-      const key = pricingKey(invite.id, type);
-      const p = pricing[key];
-      return !p || p.selectionState !== "complete";
+      const p = pricing[pricingKey(invite.id, type)];
+      return !p || (p.selectionState !== "complete" && !p.dismissed);
     });
   });
 
@@ -450,8 +533,10 @@ function ComparePage() {
     const isSelecting = selectingType === key;
     const partnerName = getDisplayName(invite).split(" ")[0];
 
-    // Don't render completed rows in the joined section
+    // Don't render completed rows in the joined section.
     if (typePricing?.selectionState === "complete") return null;
+    // Don't render types the pair has explicitly dismissed.
+    if (typePricing?.dismissed) return null;
 
     const priceLabel = isLoading
       ? "..."
@@ -598,11 +683,22 @@ function ComparePage() {
       }
     }
 
+    const typeStyle = TYPE_STYLE[type];
+    // "Not applicable" escape hatch — only offered before anyone's committed
+    // anything. Once selected or confirmed, dismissal becomes a refund issue
+    // and the backend refuses it anyway.
+    const canDismiss = typePricing?.selectionState === "none";
+    const isDismissing = dismissingType === key;
     return (
       <div key={type} className="flex items-center justify-between gap-3 sm:gap-4 py-2">
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-sm text-[var(--foreground)]">{TYPE_LABELS[type]}</span>
-          <span className="text-xs text-[var(--muted)]"> &mdash; </span>
+          <span
+            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+            style={{ backgroundColor: typeStyle.bg, color: typeStyle.fg }}
+          >
+            <span aria-hidden="true">{typeStyle.icon}</span>
+            {TYPE_LABELS[type]}
+          </span>
           {priceLabel === "Free" ? (
             type === "friends" ? (
               <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">Free</span>
@@ -613,7 +709,19 @@ function ComparePage() {
             <span className="text-xs text-[var(--muted)]">{priceLabel}</span>
           )}
         </div>
-        <div className="min-w-0 text-right">{actionElement}</div>
+        <div className="min-w-0 text-right flex items-center gap-3 justify-end flex-wrap">
+          {actionElement}
+          {canDismiss && (
+            <button
+              onClick={() => handleDismissType(invite.id, type)}
+              disabled={isDismissing}
+              title={`Hide this ${TYPE_LABELS[type]} comparison — you won't see it in Joined anymore.`}
+              className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] underline-offset-2 hover:underline disabled:opacity-50"
+            >
+              {isDismissing ? "Hiding..." : "Not applicable"}
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -704,7 +812,10 @@ function ComparePage() {
               {joinedWithPending.map((invite) => (
                 <div key={invite.id} className="px-4 py-5 sm:px-6">
                   <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center font-semibold text-sm" style={{ backgroundColor: "var(--beige-dark)", color: "var(--foreground)" }}>
+                    <div
+                      className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                      style={{ backgroundColor: avatarColor(partnerUserId(invite)) }}
+                    >
                       {getDisplayName(invite).charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
@@ -745,17 +856,28 @@ function ComparePage() {
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
-              {completedEntries.map(({ invite, type, reportId, score, displayName }) => (
+              {completedEntries.map(({ invite, type, reportId, score, displayName, partnerId }) => {
+                const typeStyle = TYPE_STYLE[type];
+                return (
                 <div key={`${invite?.id ?? "direct"}_${reportId}_${type}`} className="px-4 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white font-semibold text-sm" style={{ backgroundColor: "var(--primary)" }}>
+                    <div
+                      className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                      style={{ backgroundColor: avatarColor(partnerId) }}
+                    >
                       {displayName.charAt(0).toUpperCase()}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 space-y-1">
                       <p className="font-medium text-[var(--foreground)] truncate">
                         {displayName}
                       </p>
-                      <p className="text-xs text-[var(--muted)]">{TYPE_LABELS[type]}</p>
+                      <span
+                        className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: typeStyle.bg, color: typeStyle.fg }}
+                      >
+                        <span aria-hidden="true">{typeStyle.icon}</span>
+                        {TYPE_LABELS[type]}
+                      </span>
                       {score != null && (
                         <p className="text-sm text-[var(--muted)]">
                           Compatibility Score: <span className="font-semibold" style={{ color: "var(--primary)" }}>{score}</span>
@@ -770,7 +892,8 @@ function ComparePage() {
                     View Report
                   </Link>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
