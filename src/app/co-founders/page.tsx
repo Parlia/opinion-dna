@@ -3,9 +3,10 @@ import Link from "next/link";
 import SEOPageLayout, {
   Breadcrumbs,
   DimensionBadges,
+  SEOFinalCTA,
   SEOPageFAQ,
+  SEOPricingCard,
 } from "@/components/seo/SEOPageLayout";
-import AnimateIn from "@/components/ui/AnimateIn";
 
 export const metadata: Metadata = {
   title: "Co-Founders Report | Opinion DNA",
@@ -50,7 +51,14 @@ const faq = [
 
 export default function CoFoundersPage() {
   return (
-    <SEOPageLayout>
+    <SEOPageLayout
+      afterContent={
+        <SEOFinalCTA
+          heading="Know your co-founder before it matters."
+          subheading="65% of high-potential startups fail because of co-founder conflict. Make yours the 35% that doesn't."
+        />
+      }
+    >
       <Breadcrumbs
         items={[
           { label: "Home", href: "/" },
@@ -423,162 +431,23 @@ export default function CoFoundersPage() {
         </ol>
       </section>
 
-      {/* Pricing card — styled to echo the home page's Pricing section:
-          animated brand gradient behind a bold primary-colored card. */}
-      <section className="mt-20 relative py-16 overflow-hidden rounded-2xl">
-        {/* Animated gradient background, same palette as the home hero/pricing */}
-        <div className="absolute inset-0 -z-10 opacity-30">
-          <div
-            className="absolute inset-0 animate-gradient-shift"
-            style={{
-              background:
-                "linear-gradient(115deg, #ec4899, #a855f7, #6366f1, #22d3ee, #84cc16, #f97316, #ec4899, #a855f7, #6366f1)",
-              backgroundSize: "300% 100%",
-            }}
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, transparent 20%, var(--background) 70%)",
-            }}
-          />
-        </div>
-
-        <AnimateIn>
-          <div className="text-center mb-12 px-6">
-            <h2 className="text-2xl md:text-3xl text-black">
-              Pressure-test your partnership across 48 dimensions
-            </h2>
-            <p className="mt-4 text-muted max-w-xl mx-auto">
-              One assessment. Lifetime access to your scores and comparison report.
-            </p>
-          </div>
-        </AnimateIn>
-
-        <AnimateIn delay={100}>
-          <div className="max-w-sm mx-auto px-6">
-            <div className="rounded-xl p-8 bg-primary text-white ring-2 ring-primary shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/20 transition-shadow">
-              <h3 className="text-lg font-bold text-white">Co-Founders</h3>
-              <div className="mt-3">
-                <span className="text-4xl font-bold text-white">$47</span>
-                <span className="text-sm ml-2 text-white/70">per co-founder</span>
-              </div>
-              <p className="mt-2 text-sm text-white/80">
-                Plus $399 comparison report, unlocked from your dashboard once
-                both of you complete the assessment.
-              </p>
-
-              <ul className="mt-6 space-y-2.5">
-                {[
-                  "Both founders take the 179-question assessment",
-                  "48-dimension comparison report",
-                  "Values, risk tolerance & conflict style",
-                  "Cognitive complementarity analysis",
-                  "Pairwise for teams of 3+ co-founders",
-                  "Viewable online, lifetime access",
-                ].map((feature) => (
-                  <li
-                    key={feature}
-                    className="text-sm flex items-start gap-2.5 text-white/90"
-                  >
-                    <svg
-                      className="w-4 h-4 mt-0.5 flex-shrink-0 text-white/70"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href="/signup"
-                className="mt-8 block text-center py-3.5 px-4 rounded-lg font-semibold text-sm transition-colors bg-white text-primary hover:bg-white/90"
-              >
-                Start My Assessment
-              </Link>
-            </div>
-
-            {/* Trust signals, matching home page Pricing */}
-            <div className="mt-6 text-center space-y-2">
-              <p className="text-sm text-muted flex items-center justify-center gap-2">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                  />
-                </svg>
-                30-day money-back guarantee
-              </p>
-              <p className="text-xs text-muted/60">Secure payment via Stripe</p>
-            </div>
-          </div>
-        </AnimateIn>
-      </section>
+      <SEOPricingCard
+        heading="Pressure-test your partnership across 48 dimensions"
+        subheading="One assessment. Lifetime access to your scores and comparison report."
+        planName="Co-Founders"
+        price="$47"
+        priceSuffix="per co-founder"
+        description="Plus $399 comparison report, unlocked from your dashboard once both of you complete the assessment."
+        features={[
+          "Both founders take the 179-question assessment",
+          "48-dimension comparison report",
+          "Values, risk tolerance & conflict style",
+          "Cognitive complementarity analysis",
+          "Viewable online, lifetime access",
+        ]}
+      />
 
       <SEOPageFAQ items={faq} pageUrl="/co-founders" />
-
-      {/* Final CTA — mirrors the home page CTA.tsx so visitors who scroll all
-          the way through the FAQ land on a clear last prompt to act. */}
-      <section className="relative mt-20 -mx-6 md:-mx-12 py-24 overflow-hidden rounded-2xl">
-        <div
-          className="absolute inset-0 opacity-30"
-          style={{
-            background:
-              "linear-gradient(115deg, #ec4899, #a855f7, #6366f1, #22d3ee, #84cc16, #f97316, #ec4899, #a855f7, #6366f1)",
-            backgroundSize: "300% 100%",
-            animation: "gradient-shift 25s ease infinite",
-            willChange: "background-position",
-          }}
-        />
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(to bottom, var(--background) 0%, transparent 100%)",
-          }}
-        />
-        <div className="relative max-w-3xl mx-auto text-center px-6">
-          <AnimateIn>
-            <h2 className="text-3xl md:text-4xl text-black">
-              Know your co-founder before it matters.
-            </h2>
-          </AnimateIn>
-          <AnimateIn delay={100}>
-            <p className="mt-4 text-lg text-muted max-w-xl mx-auto">
-              65% of high-potential startups fail because of co-founder
-              conflict. Make yours the 35% that doesn&apos;t.
-            </p>
-          </AnimateIn>
-          <AnimateIn delay={200}>
-            <Link
-              href="/signup"
-              className="inline-flex items-center justify-center mt-8 px-10 py-4 bg-primary text-white font-bold rounded-lg text-lg hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 transition-all"
-            >
-              Start My Assessment &mdash; $47
-            </Link>
-            <p className="mt-4 text-sm text-muted">
-              One-time purchase. Lifetime access.
-            </p>
-          </AnimateIn>
-        </div>
-      </section>
     </SEOPageLayout>
   );
 }

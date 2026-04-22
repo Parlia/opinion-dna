@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import SEOPageLayout, {
   Breadcrumbs,
   DimensionBadges,
+  SEOFinalCTA,
   SEOPageFAQ,
+  SEOPricingCard,
 } from "@/components/seo/SEOPageLayout";
 
 export const metadata: Metadata = {
@@ -49,7 +50,14 @@ const faq = [
 
 export default function FriendsPage() {
   return (
-    <SEOPageLayout>
+    <SEOPageLayout
+      afterContent={
+        <SEOFinalCTA
+          heading="See your friendship from a new angle."
+          subheading="48 dimensions, side by side, with conversation starters made just for the two of you. Comparison report always free."
+        />
+      }
+    >
       <Breadcrumbs
         items={[
           { label: "Home", href: "/" },
@@ -200,24 +208,25 @@ export default function FriendsPage() {
         </ol>
       </section>
 
-      <section className="mt-16 bg-white rounded-2xl border border-border p-8 md:p-12 text-center">
-        <h2 className="text-2xl md:text-3xl text-black">
-          See what makes your friendship uniquely yours
-        </h2>
-        <p className="mt-4 text-muted max-w-xl mx-auto">
-          Each friend takes the Personal Assessment ($47 each). Then unlock the
-          Friends Comparison Report — free — from your dashboard.
-        </p>
-        <Link
-          href="/signup"
-          className="inline-flex items-center justify-center mt-8 px-10 py-4 bg-primary text-white font-bold rounded-lg text-lg hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 transition-all"
-        >
-          Start My Assessment &mdash; $47
-        </Link>
-        <p className="mt-3 text-sm text-muted">
-          One-time purchase. Lifetime access. Friends Report always free.
-        </p>
-      </section>
+      <SEOPricingCard
+        heading="See what makes your friendship uniquely yours"
+        subheading="Each friend takes the Personal Assessment. The Friends Comparison Report is always free."
+        planName="Friends"
+        price="$47"
+        priceSuffix="per friend"
+        description="Plus the Friends Comparison Report, free — unlocked automatically when both of you confirm."
+        features={[
+          "48-element Opinion DNA profile each",
+          "Friends comparison report — always free",
+          "Conversation starters for the two of you",
+          "Where you align, where you diverge",
+          "Viewable online, lifetime access",
+        ]}
+        trustLines={[
+          "30-day money-back guarantee",
+          "Friends Report always free · Secure payment via Stripe",
+        ]}
+      />
 
       <SEOPageFAQ items={faq} pageUrl="/friends" />
     </SEOPageLayout>

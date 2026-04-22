@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import SEOPageLayout, {
   Breadcrumbs,
   DimensionBadges,
-  SEOPageCTA,
+  SEOFinalCTA,
   SEOPageFAQ,
+  SEOPricingCard,
 } from "@/components/seo/SEOPageLayout";
 
 export const metadata: Metadata = {
@@ -50,7 +50,14 @@ const faq = [
 
 export default function CouplesPage() {
   return (
-    <SEOPageLayout>
+    <SEOPageLayout
+      afterContent={
+        <SEOFinalCTA
+          heading="Know each other better than ever."
+          subheading="48 dimensions of how each of you thinks, feels, and decides — with the context to actually use it."
+        />
+      }
+    >
       <Breadcrumbs
         items={[
           { label: "Home", href: "/" },
@@ -199,24 +206,22 @@ export default function CouplesPage() {
         </ol>
       </section>
 
-      <section className="mt-16 bg-white rounded-2xl border border-border p-8 md:p-12 text-center">
-        <h2 className="text-2xl md:text-3xl text-black">
-          Map your relationship across 48 dimensions
-        </h2>
-        <p className="mt-4 text-muted max-w-xl mx-auto">
-          Each partner takes the Personal Assessment ($47 each). Then
-          unlock the Couples Comparison Report ($49) from your dashboard.
-        </p>
-        <Link
-          href="/signup"
-          className="inline-flex items-center justify-center mt-8 px-10 py-4 bg-primary text-white font-bold rounded-lg text-lg hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 transition-all"
-        >
-          Start My Assessment &mdash; $47
-        </Link>
-        <p className="mt-3 text-sm text-muted">
-          One-time purchase. Lifetime access. 30-day money-back guarantee.
-        </p>
-      </section>
+      <SEOPricingCard
+        heading="Map your relationship across 48 dimensions"
+        subheading="One assessment each. Lifetime access to your scores and comparison report."
+        planName="Couples"
+        price="$47"
+        priceSuffix="per partner"
+        description="Plus $49 Couples Comparison Report, unlocked from your dashboard once both of you complete the assessment."
+        features={[
+          "Both partners take the 179-question assessment",
+          "48-dimension comparison report",
+          "Communication & conflict style",
+          "Values & decision-making alignment",
+          "Discussion prompts tailored to your pair",
+          "Viewable online, lifetime access",
+        ]}
+      />
 
       <SEOPageFAQ items={faq} pageUrl="/couples" />
     </SEOPageLayout>

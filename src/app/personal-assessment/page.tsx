@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import SEOPageLayout, {
   Breadcrumbs,
   DimensionBadges,
+  SEOFinalCTA,
   SEOPageFAQ,
+  SEOPricingCard,
 } from "@/components/seo/SEOPageLayout";
 
 export const metadata: Metadata = {
@@ -54,7 +55,14 @@ const faq = [
 
 export default function PersonalAssessmentPage() {
   return (
-    <SEOPageLayout>
+    <SEOPageLayout
+      afterContent={
+        <SEOFinalCTA
+          heading="Ready to map your mind?"
+          subheading="48 dimensions of personality, values, and meta-thinking. Built with 60+ world experts. Your complete psychographic profile in 10 to 15 minutes."
+        />
+      }
+    >
       <Breadcrumbs
         items={[
           { label: "Home", href: "/" },
@@ -275,24 +283,22 @@ export default function PersonalAssessmentPage() {
         </ol>
       </section>
 
-      <section className="mt-16 bg-white rounded-2xl border border-border p-8 md:p-12 text-center">
-        <h2 className="text-2xl md:text-3xl text-black">
-          Map your mind across 48 dimensions
-        </h2>
-        <p className="mt-4 text-muted max-w-xl mx-auto">
-          One assessment, 10 to 15 minutes, the most complete psychographic
-          profile available today.
-        </p>
-        <Link
-          href="/signup"
-          className="inline-flex items-center justify-center mt-8 px-10 py-4 bg-primary text-white font-bold rounded-lg text-lg hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 transition-all"
-        >
-          Start My Assessment &mdash; $47
-        </Link>
-        <p className="mt-3 text-sm text-muted">
-          One-time purchase. Lifetime access. 30-day money-back guarantee.
-        </p>
-      </section>
+      <SEOPricingCard
+        heading="Map your mind across 48 dimensions"
+        subheading="One assessment. Lifetime access to your scores and personal report."
+        planName="Personal"
+        price="$47"
+        priceSuffix="one-time"
+        description="Your complete psychographic profile in 10 to 15 minutes, with a detailed AI-generated report."
+        features={[
+          "48-element Opinion DNA profile",
+          "AI-generated personal report",
+          "Life, Relationships & Career insight",
+          "Cognitive Signature analysis",
+          "Every element explained in context",
+          "Viewable online, lifetime access",
+        ]}
+      />
 
       <SEOPageFAQ items={faq} pageUrl="/personal-assessment" />
     </SEOPageLayout>

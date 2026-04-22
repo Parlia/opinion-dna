@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import SEOPageLayout, {
   Breadcrumbs,
   DimensionBadges,
+  SEOFinalCTA,
   SEOPageFAQ,
+  SEOPricingCard,
 } from "@/components/seo/SEOPageLayout";
 
 export const metadata: Metadata = {
@@ -54,7 +55,17 @@ const faq = [
 
 export default function TeamsPage() {
   return (
-    <SEOPageLayout>
+    <SEOPageLayout
+      afterContent={
+        <SEOFinalCTA
+          heading="Build a team that thinks better together."
+          subheading="Map your team across 48 dimensions of personality, values, and meta-thinking. Volume pricing for 5+."
+          ctaLabel="Contact Us for Teams"
+          ctaHref="mailto:hello@opiniondna.com?subject=Teams%20Report%20inquiry"
+          trustLine="One-time purchase per person. Lifetime access."
+        />
+      }
+    >
       <Breadcrumbs
         items={[
           { label: "Home", href: "/" },
@@ -204,31 +215,28 @@ export default function TeamsPage() {
         </ol>
       </section>
 
-      <section className="mt-16">
-        <h2 className="text-2xl md:text-3xl text-black mb-4">
-          Pricing
-        </h2>
-        <div className="bg-white rounded-xl border border-border p-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div>
-              <p className="text-foreground leading-relaxed">
-                <span className="text-2xl font-bold text-black">$47</span>
-                <span className="text-muted ml-2">per person, one-time</span>
-              </p>
-              <p className="text-sm text-muted mt-2">
-                Volume discounts available for teams of 5+. Contact us for a
-                custom quote.
-              </p>
-            </div>
-            <a
-              href="mailto:hello@opiniondna.com?subject=Teams%20Report%20inquiry"
-              className="inline-flex items-center justify-center px-8 py-3.5 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 transition-all whitespace-nowrap"
-            >
-              Contact Us for Teams
-            </a>
-          </div>
-        </div>
-      </section>
+      <SEOPricingCard
+        heading="Map your team across 48 dimensions"
+        subheading="Volume pricing for 5+. Get in touch for a custom quote."
+        planName="Teams"
+        price="$47"
+        priceSuffix="per person"
+        description="Volume discounts for teams of 5+. We'll put together a quote that fits your team size and rollout plan."
+        features={[
+          "Each member takes the 179-question assessment",
+          "Group-level patterns & cognitive diversity",
+          "Pairwise comparisons across the team",
+          "Blind-spot & communication insights",
+          "Rollout support for teams of 5+",
+          "Viewable online, lifetime access",
+        ]}
+        ctaLabel="Contact Us for Teams"
+        ctaHref="mailto:hello@opiniondna.com?subject=Teams%20Report%20inquiry"
+        trustLines={[
+          "Custom quotes for 5+ teammates",
+          "One-time purchase per person · Lifetime access",
+        ]}
+      />
 
       <SEOPageFAQ items={faq} pageUrl="/teams" />
     </SEOPageLayout>
