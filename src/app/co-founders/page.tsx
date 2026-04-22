@@ -79,19 +79,23 @@ export default function CoFoundersPage() {
       </section>
 
       {/* ── Scroll-stopping: the #1 cause of startup failure ───────────────── */}
-      <section className="mt-20 -mx-6 md:-mx-12">
-        {/* Hero stat panel: dark, inverted, dominates the viewport */}
-        <div className="relative rounded-2xl bg-[#0A0A0A] text-white overflow-hidden px-8 py-16 md:px-16 md:py-20">
-          {/* Subtle red-amber backglow so it reads as "warning" without shouting */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 opacity-30 pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(ellipse 80% 60% at 50% 0%, #CC3333 0%, transparent 70%)",
-            }}
-          />
-          <div className="relative">
+      {/* One cohesive dark block for the whole problem statement, so the next
+          section ("What the Report reveals") reads as the solution. */}
+      <section className="mt-20 -mx-6 md:-mx-12 relative rounded-2xl bg-[#0A0A0A] text-white overflow-hidden">
+        {/* Ambient red-amber glow at the top, fading into deep black below.
+            Keeps the panel feeling like a unified object, not a stack. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 opacity-30 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse 90% 50% at 50% 0%, #CC3333 0%, transparent 65%)",
+          }}
+        />
+
+        <div className="relative px-8 py-16 md:px-16 md:py-24 space-y-20">
+          {/* 1. Hero stat */}
+          <div>
             <p className="text-xs md:text-sm font-semibold uppercase tracking-[0.25em] text-[#FFB3B3] mb-6">
               The #1 reason startups fail
             </p>
@@ -119,123 +123,135 @@ export default function CoFoundersPage() {
               Noam Wasserman, <span className="not-italic">The Founder&apos;s Dilemmas</span> (Harvard Business School)
             </p>
           </div>
-        </div>
 
-        {/* Core hook */}
-        <div className="mt-16 text-center max-w-3xl mx-auto px-6">
-          <p className="text-3xl md:text-4xl text-black leading-tight">
-            Most startups don&apos;t fail because of the idea.
-          </p>
-          <p className="mt-3 text-3xl md:text-4xl leading-tight font-semibold text-[#CC3333]">
-            They fail because of the relationship.
-          </p>
-        </div>
-
-        {/* Body */}
-        <div className="mt-16 max-w-2xl mx-auto px-6 space-y-3 text-lg text-foreground leading-relaxed">
-          <p>You think your biggest risk is product-market fit.</p>
-          <p>Or funding.</p>
-          <p>Or timing.</p>
-          <p className="pt-2 text-xl font-semibold text-black">It&apos;s not.</p>
-          <p className="pt-4">
-            Two-thirds of the time, the biggest risk in your startup is the
-            person sitting next to you.
-          </p>
-        </div>
-
-        {/* Y Combinator pull-quote — verified from PG's "18 Mistakes That Kill Startups" */}
-        <div className="mt-14 max-w-3xl mx-auto px-6">
-          <blockquote className="relative border-l-4 border-primary pl-6 md:pl-8 py-2">
-            <p className="text-xl md:text-2xl text-black font-light italic leading-snug">
-              &ldquo;Most of the disputes I&apos;ve seen between founders could
-              have been avoided if they&apos;d been more careful about who they
-              started a company with.&rdquo;
+          {/* 2. Emotional turn */}
+          <div className="text-center max-w-3xl mx-auto">
+            <p className="text-3xl md:text-4xl text-white leading-tight">
+              Most startups don&apos;t fail because of the idea.
             </p>
-            <footer className="mt-4 text-sm text-muted not-italic">
-              — Paul Graham, Y Combinator
-            </footer>
-          </blockquote>
-        </div>
-
-        {/* The uncomfortable truth */}
-        <div className="mt-20 max-w-3xl mx-auto px-6">
-          <p className="text-sm font-semibold uppercase tracking-widest text-[#CC3333] mb-3">
-            The uncomfortable truth
-          </p>
-          <h3 className="text-2xl md:text-3xl text-black mb-6 leading-tight">
-            Co-founder breakdowns rarely look dramatic at first.
-          </h3>
-          <p className="text-foreground leading-relaxed mb-8">
-            They start small:
-          </p>
-          <ul className="space-y-4">
-            {[
-              "Slight differences in ambition",
-              "Unspoken expectations about roles",
-              "Quiet resentment about effort or equity",
-              "Avoided conversations",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-4">
-                <span
-                  aria-hidden="true"
-                  className="mt-[0.6em] w-6 h-px bg-[#CC3333] flex-shrink-0"
-                />
-                <span className="text-lg text-foreground">{item}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-10 text-foreground leading-relaxed">
-            Then one day decisions slow down, trust erodes, alignment disappears.
-          </p>
-          <p className="mt-3 text-xl md:text-2xl text-black font-semibold leading-snug">
-            And the company quietly dies — even if the idea was strong.
-          </p>
-        </div>
-
-        {/* Why this happens — the questions */}
-        <div className="mt-20 max-w-3xl mx-auto px-6">
-          <p className="text-sm font-semibold uppercase tracking-widest text-primary mb-3">
-            Why this happens
-          </p>
-          <h3 className="text-2xl md:text-3xl text-black mb-8 leading-tight">
-            Because most co-founders never answer the hard questions.
-          </h3>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {[
-              "What do we actually want from this company?",
-              "Who has the final say when we disagree?",
-              "What happens if one of us wants out?",
-              "How do we handle money, power, and pressure?",
-            ].map((question) => (
-              <div
-                key={question}
-                className="bg-white border border-border rounded-xl p-6"
-              >
-                <p className="text-black italic text-lg leading-snug">
-                  &ldquo;{question}&rdquo;
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-10 bg-[#0A0A0A] text-white rounded-xl p-6 md:p-8">
-            <p className="text-white/70 text-sm uppercase tracking-widest font-semibold mb-3">
-              Instead, they rely on:
-            </p>
-            <p className="text-2xl md:text-3xl font-light italic text-white leading-snug">
-              &ldquo;We&apos;ll figure it out.&rdquo;
-            </p>
-            <p className="mt-4 text-lg text-white/70">
-              That works — until it doesn&apos;t.
+            <p className="mt-3 text-3xl md:text-4xl leading-tight font-semibold text-[#FF6B6B]">
+              They fail because of the relationship.
             </p>
           </div>
-        </div>
 
-        {/* Bridge into the existing "what the report reveals" */}
-        <div className="mt-20 max-w-3xl mx-auto px-6 text-center">
-          <p className="text-xl md:text-2xl text-black font-light leading-snug">
-            That&apos;s exactly what the Co-Founders Report is built to surface —
-            <span className="font-semibold"> before it costs you the company</span>.
-          </p>
+          {/* 3. Staccato body */}
+          <div className="max-w-2xl mx-auto space-y-3 text-lg text-white/80 leading-relaxed">
+            <p>You think your biggest risk is product-market fit.</p>
+            <p>Or funding.</p>
+            <p>Or timing.</p>
+            <p className="pt-2 text-xl font-semibold text-white">It&apos;s not.</p>
+            <p className="pt-4">
+              Two-thirds of the time, the biggest risk in your startup is the
+              person sitting next to you.
+            </p>
+          </div>
+
+          {/* 4. PG pull-quote — elevated dark card */}
+          <div className="max-w-3xl mx-auto">
+            <blockquote className="bg-white/5 border border-white/10 rounded-xl p-8 md:p-10">
+              <p className="text-xl md:text-2xl text-white font-light italic leading-snug">
+                &ldquo;Most of the disputes I&apos;ve seen between founders could
+                have been avoided if they&apos;d been more careful about who they
+                started a company with.&rdquo;
+              </p>
+              <footer className="mt-6 text-sm text-white/50 not-italic">
+                — Paul Graham, Y Combinator
+              </footer>
+            </blockquote>
+          </div>
+
+          {/* 5. The uncomfortable truth — dark card */}
+          <div className="max-w-3xl mx-auto bg-white/5 border border-white/10 rounded-xl p-8 md:p-10">
+            <p className="text-xs md:text-sm font-semibold uppercase tracking-[0.25em] text-[#FFB3B3] mb-4">
+              The uncomfortable truth
+            </p>
+            <h3 className="text-2xl md:text-3xl text-white mb-6 leading-tight">
+              Co-founder breakdowns rarely look dramatic at first.
+            </h3>
+            <p className="text-white/80 leading-relaxed mb-8">
+              They start small:
+            </p>
+            <ul className="space-y-4">
+              {[
+                "Slight differences in ambition",
+                "Unspoken expectations about roles",
+                "Quiet resentment about effort or equity",
+                "Avoided conversations",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-4">
+                  <span
+                    aria-hidden="true"
+                    className="mt-[0.6em] w-6 h-px bg-[#FF6B6B] flex-shrink-0"
+                  />
+                  <span className="text-lg text-white/90">{item}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-10 text-white/80 leading-relaxed">
+              Then one day decisions slow down, trust erodes, alignment disappears.
+            </p>
+            <p className="mt-3 text-xl md:text-2xl text-white font-semibold leading-snug">
+              And the company quietly dies — even if the idea was strong.
+            </p>
+          </div>
+
+          {/* 6. Why this happens — questions as dark cards */}
+          <div className="max-w-3xl mx-auto">
+            <p className="text-xs md:text-sm font-semibold uppercase tracking-[0.25em] text-[#FFB3B3] mb-4">
+              Why this happens
+            </p>
+            <h3 className="text-2xl md:text-3xl text-white mb-8 leading-tight">
+              Because most co-founders never answer the hard questions.
+            </h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[
+                "What do we actually want from this company?",
+                "Who has the final say when we disagree?",
+                "What happens if one of us wants out?",
+                "How do we handle money, power, and pressure?",
+              ].map((question) => (
+                <div
+                  key={question}
+                  className="bg-white/5 border border-white/10 rounded-xl p-6"
+                >
+                  <p className="text-white italic text-lg leading-snug">
+                    &ldquo;{question}&rdquo;
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* "We'll figure it out" — red-accented dark card for final punch */}
+            <div
+              className="mt-6 relative rounded-xl p-6 md:p-8 overflow-hidden border border-[#CC3333]/30"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(204,51,51,0.08) 0%, rgba(204,51,51,0) 60%)",
+                backgroundColor: "#0A0A0A",
+              }}
+            >
+              <p className="text-[#FFB3B3] text-xs md:text-sm font-semibold uppercase tracking-[0.25em] mb-3">
+                Instead, they rely on:
+              </p>
+              <p className="text-2xl md:text-3xl font-light italic text-white leading-snug">
+                &ldquo;We&apos;ll figure it out.&rdquo;
+              </p>
+              <p className="mt-4 text-lg text-white/70">
+                That works — until it doesn&apos;t.
+              </p>
+            </div>
+          </div>
+
+          {/* 7. Bridge — closes the problem section with a promise */}
+          <div className="max-w-3xl mx-auto text-center">
+            <p className="text-xl md:text-2xl text-white font-light leading-snug">
+              That&apos;s exactly what the Co-Founders Report is built to surface —
+              <span className="font-semibold text-white">
+                {" "}before it costs you the company
+              </span>
+              .
+            </p>
+          </div>
         </div>
       </section>
 
