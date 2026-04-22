@@ -107,9 +107,9 @@ function ScoreBar({
   onToggle: () => void;
 }) {
   return (
-    <div className="px-5 py-4 sm:py-3 cursor-pointer hover:bg-[#FAFAF8] transition-colors" onClick={onToggle}>
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2.5 min-w-0">
+    <div className="px-4 sm:px-5 py-4 sm:py-3 cursor-pointer hover:bg-[#FAFAF8] transition-colors" onClick={onToggle}>
+      <div className="flex items-center justify-between gap-2 sm:gap-3 mb-1.5">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <span
             className="min-w-7 w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0"
             style={{ backgroundColor: item.barColor }}
@@ -123,13 +123,13 @@ function ScoreBar({
             <p className="text-xs text-[var(--muted)] truncate">{item.tooltip}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 shrink-0 ml-4">
-          <span className="text-xs text-[#aaa]">avg {item.avg}</span>
-          <span className="text-base font-bold text-[var(--foreground)] w-8 text-right">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <span className="hidden sm:inline text-xs text-[#aaa]">avg {item.avg}</span>
+          <span className="text-base font-bold text-[var(--foreground)] w-7 sm:w-8 text-right">
             {item.score}
           </span>
           <span
-            className="text-[10px] font-bold w-16 text-right"
+            className="text-[10px] font-bold w-14 sm:w-16 text-right"
             style={{ color: item.levelColor }}
           >
             {item.level}
