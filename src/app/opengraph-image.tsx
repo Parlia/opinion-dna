@@ -1,5 +1,12 @@
 import { ImageResponse } from "next/og";
 
+// Edge runtime is required here — the fonts are loaded with
+// `fetch(new URL("./fonts/...", import.meta.url))`, which isn't supported
+// under Node's static-generation runtime ("not implemented... yet..."). The
+// "static generation disabled" warning is the cost of edge for OG images
+// and is fine; swapping to a Node-compatible font loader would be the
+// real fix if we ever want to silence it.
+export const runtime = "edge";
 export const alt =
   "Opinion DNA — 48 dimensions of personality, values, and meta-thinking";
 export const size = { width: 1200, height: 630 };
