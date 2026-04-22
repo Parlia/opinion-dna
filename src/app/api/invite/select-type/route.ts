@@ -182,6 +182,29 @@ export async function POST(request: Request) {
     }
 
     if (!validPurchaseId) {
+      // Before sending this user to Stripe, make sure the partner hasn't
+      // already paid. One purchase is enough to unlock the report; a second
+      // would just be money left on the floor. This catches the race where
+      // two users click Select before the first one's selection row gets
+      // written.
+      if (partnerId) {
+        const { data: partnerPurchase } = await admin
+          .from("purchases")
+          .select("id")
+          .eq("user_id", partnerId)
+          .eq("type", purchaseType)
+          .eq("status", "completed")
+          .limit(1)
+          .maybeSingle();
+        if (partnerPurchase) {
+          return NextResponse.json({
+            status: "partner_paid_waiting",
+            message:
+              "Your partner has already paid for this report. Give it a moment, then refresh — you'll see a Confirm button instead.",
+          });
+        }
+      }
+
       const productId = relationshipType === "couples" ? "couples_comparison" : "cofounders_comparison";
       const price = relationshipType === "couples" ? 49 : 399;
       return NextResponse.json({

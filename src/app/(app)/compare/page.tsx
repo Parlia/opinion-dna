@@ -35,6 +35,8 @@ interface PricingData {
   compatibilityScore: number | null;
   selfHasScores?: boolean;
   partnerHasScores?: boolean;
+  selfHasPurchase?: boolean;
+  partnerHasPurchase?: boolean;
 }
 
 const RELATIONSHIP_TYPES = ["friends", "couples", "cofounders"] as const;
@@ -278,12 +280,22 @@ function ComparePage() {
         return;
       }
 
-      if (result.error) {
+      if (result.status === "partner_paid_waiting") {
+        // The partner got to Stripe first. Don't double-charge this user —
+        // refresh pricing so the row shows the up-to-date state and the
+        // Confirm button appears once the partner's selection lands.
+        toast.info(
+          "Partner has already paid",
+          "Give it a few seconds and the Confirm button will appear."
+        );
+        for (const t of RELATIONSHIP_TYPES) fetchPricing(inviteId, t);
+      } else if (result.error) {
         setGenerateError(result.error);
-      }
-      // Re-fetch all pricing for this invite to get updated states
-      for (const t of RELATIONSHIP_TYPES) {
-        fetchPricing(inviteId, t);
+      } else {
+        // Re-fetch all pricing for this invite to get updated states
+        for (const t of RELATIONSHIP_TYPES) {
+          fetchPricing(inviteId, t);
+        }
       }
     } catch {
       setGenerateError("Network error. Check your connection and try again.");
@@ -512,6 +524,15 @@ function ComparePage() {
         actionElement = (
           <span className="text-xs text-[var(--muted)]">
             Waiting for {partnerName} to finish their assessment
+          </span>
+        );
+      } else if (typePricing.partnerHasPurchase && !typePricing.selfHasPurchase) {
+        // Partner already paid for this report but their selection row hasn't
+        // landed yet (Stripe/verify round-trip). Don't let this user kick off
+        // a second payment.
+        actionElement = (
+          <span className="text-xs text-amber-700" title={`${partnerName} has already paid. Refresh in a moment — you'll see a Confirm button.`}>
+            {partnerName} has paid — waiting to confirm
           </span>
         );
       } else {

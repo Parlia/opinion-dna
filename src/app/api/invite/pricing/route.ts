@@ -60,6 +60,30 @@ export async function GET(request: Request) {
     relationshipType,
   );
 
+  // Whether the partner (not the current user) has already completed a
+  // purchase for this comparison. Lets /compare render "partner has paid"
+  // instead of a second Stripe redirect if both users click Select in the
+  // narrow window between A returning from Stripe and A's selection row
+  // getting inserted.
+  const purchaseType =
+    relationshipType === "couples"
+      ? "couples_comparison"
+      : relationshipType === "cofounders"
+        ? "cofounders_comparison"
+        : null;
+  const hasCompletedPurchase = (
+    rows: { type: string; status: string }[] | null | undefined,
+    t: string
+  ) => (rows ?? []).some((p) => p.type === t && p.status === "completed");
+  const partnerPurchases =
+    user.id === invite.from_user_id ? inviteePurchases : inviterPurchases;
+  const selfPurchases =
+    user.id === invite.from_user_id ? inviterPurchases : inviteePurchases;
+  const partnerHasPurchase =
+    !!purchaseType && hasCompletedPurchase(partnerPurchases, purchaseType);
+  const selfHasPurchase =
+    !!purchaseType && hasCompletedPurchase(selfPurchases, purchaseType);
+
   // Get selection state for this (invite, type) pair
   const { data: selection } = await admin
     .from("comparison_selections")
@@ -106,5 +130,7 @@ export async function GET(request: Request) {
     compatibilityScore: selection?.compatibility_score || null,
     selfHasScores,
     partnerHasScores,
+    selfHasPurchase,
+    partnerHasPurchase,
   });
 }
