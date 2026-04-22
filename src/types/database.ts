@@ -10,6 +10,7 @@ export interface Database {
         Row: {
           id: string;
           full_name: string | null;
+          preferred_name: string | null;
           stripe_customer_id: string | null;
           created_at: string;
           updated_at: string;
@@ -17,10 +18,12 @@ export interface Database {
         Insert: {
           id: string;
           full_name?: string | null;
+          preferred_name?: string | null;
           stripe_customer_id?: string | null;
         };
         Update: {
           full_name?: string | null;
+          preferred_name?: string | null;
           stripe_customer_id?: string | null;
         };
       };

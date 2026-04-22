@@ -30,6 +30,25 @@ type Admin = SupabaseClient;
 const LLM_OPTIONS = { model: "claude-opus-4-7", maxTokens: 16000 } as const;
 
 /**
+ * Pick the name Claude should use when addressing the user. Prefers the
+ * user-supplied preferred_name; otherwise passes full_name through. We
+ * intentionally don't auto-shorten full_name here — doing so produces
+ * worse output for names whose first token is an initial ("J. Paul
+ * Neeley" → "J."). Users who want a specific short form set preferred_name
+ * at signup or in Settings.
+ */
+function resolveDisplayName(
+  profile: { full_name?: string | null; preferred_name?: string | null } | null,
+  fallback: string,
+): string {
+  return (
+    profile?.preferred_name?.trim() ||
+    profile?.full_name?.trim() ||
+    fallback
+  );
+}
+
+/**
  * Anything older than this in `status: "generating"` is assumed to be a dead
  * lambda (Vercel kills us at maxDuration = 800s on Fluid Compute). 14 min
  * leaves a small buffer past the timeout so in-flight runs aren't reaped.
@@ -110,16 +129,20 @@ export async function generateComparisonReport(
 
   const { data: profileFrom } = await admin
     .from("profiles")
-    .select("full_name")
+    .select("full_name, preferred_name")
     .eq("id", invite.from_user_id)
     .single();
   const { data: profileTo } = await admin
     .from("profiles")
-    .select("full_name")
+    .select("full_name, preferred_name")
     .eq("id", invite.to_user_id)
     .single();
-  const nameA = profileFrom?.full_name || "Partner A";
-  const nameB = profileTo?.full_name || "Partner B";
+  // Prefer preferred_name (how the user asked to be addressed) over full_name
+  // for Claude's second-person briefs. Fall back to the first token of
+  // full_name so long names aren't used as direct address ("J. Paul Neeley,
+  // here's what to know..." reads formally and wrong).
+  const nameA = resolveDisplayName(profileFrom, "Partner A");
+  const nameB = resolveDisplayName(profileTo, "Partner B");
 
   const compatibility = computeCompatibility(scoresFrom.scores, scoresTo.scores);
 

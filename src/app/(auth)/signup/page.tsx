@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { deriveFirstName } from "@/lib/auth/display-name";
 
 export default function SignupPageWrapper() {
   return (
@@ -25,6 +26,7 @@ export default function SignupPageWrapper() {
 function SignupPage() {
   const searchParams = useSearchParams();
   const [name, setName] = useState("");
+  const [preferredName, setPreferredName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -70,6 +72,13 @@ function SignupPage() {
     setLoading(true);
     setError("");
 
+    // Preferred name defaults to the derived first name if left blank —
+    // e.g. "Jane Smith" → "Jane", "J. Paul Neeley" → "J. Paul". Users with
+    // anything more unusual (nicknames, middle-name preferences) set it
+    // explicitly. The trigger in 014_preferred_name reads this from
+    // raw_user_meta_data on profile creation.
+    const finalPreferred = preferredName.trim() || deriveFirstName(name);
+
     const supabase = createClient();
     const { error } = await supabase.auth.signUp({
       email,
@@ -77,6 +86,7 @@ function SignupPage() {
       options: {
         data: {
           full_name: name,
+          preferred_name: finalPreferred,
         },
         emailRedirectTo: buildCallbackUrl(),
       },
@@ -194,6 +204,23 @@ function SignupPage() {
                 className="w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
                 placeholder="Your name"
               />
+            </div>
+
+            <div>
+              <label htmlFor="preferredName" className="block text-sm font-medium text-[var(--foreground)] mb-1">
+                What should we call you? <span className="text-[var(--muted)] font-normal">(optional)</span>
+              </label>
+              <input
+                id="preferredName"
+                type="text"
+                value={preferredName}
+                onChange={(e) => setPreferredName(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
+                placeholder={deriveFirstName(name) || "e.g. J. Paul"}
+              />
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                How you&apos;ll be addressed in your reports. Defaults to your first name.
+              </p>
             </div>
 
             <div>

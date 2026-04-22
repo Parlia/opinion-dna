@@ -61,13 +61,26 @@ export async function POST() {
   }
 
   try {
-    const userName = user.user_metadata?.full_name || "the individual";
+    // preferred_name is what Claude will address the user as in the report.
+    // Written to profiles by the signup trigger; read from there so we pick
+    // up later Settings edits too. Fall back to full_name, then to a
+    // neutral placeholder so the prompt never interpolates empty string.
+    const admin = createAdminClient();
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("full_name, preferred_name")
+      .eq("id", user.id)
+      .single();
+    const userName =
+      profile?.preferred_name?.trim() ||
+      profile?.full_name?.trim() ||
+      user.user_metadata?.full_name ||
+      "the individual";
     const apiKey = process.env.ANTHROPIC_API_KEY!;
 
     // Split the ~7,000-10,000 word report across 3 parallel Opus calls along
-    // natural section boundaries. This keeps Opus quality while fitting in
-    // the 300s Vercel function timeout — each call is ~2,000-3,500 words and
-    // they run concurrently, so total wall time is max(call_durations).
+    // natural section boundaries. Each call is ~2,000-3,500 words and they
+    // run concurrently, so total wall time is max(call_durations).
     const groups: ReportSection[][] = [
       ["P2", "P3"], // Life & Happiness + Relationships
       ["P4", "P5"], // Career + Cognitive Signature

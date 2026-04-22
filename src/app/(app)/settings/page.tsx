@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { deriveFirstName } from "@/lib/auth/display-name";
 
 export default function SettingsPage() {
   const [name, setName] = useState("");
+  const [preferredName, setPreferredName] = useState("");
   const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -17,6 +19,15 @@ export default function SettingsPage() {
 
       setEmail(user.email ?? "");
       setName(user.user_metadata?.full_name ?? "");
+
+      // preferred_name isn't in auth.users.user_metadata by default (the
+      // signup trigger wrote it directly to profiles), so read it from there.
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("preferred_name")
+        .eq("id", user.id)
+        .single();
+      setPreferredName(profile?.preferred_name ?? "");
     }
     load();
   }, []);
@@ -26,14 +37,23 @@ export default function SettingsPage() {
     setSaving(true);
 
     const supabase = createClient();
+    const userRes = await supabase.auth.getUser();
+    const userId = userRes.data.user?.id;
+
+    // Blank preferred_name → fall back to deriveFirstName so reports still
+    // have a sensible short address (handles initials like "J. Paul" too).
+    const finalPreferred = preferredName.trim() || deriveFirstName(name);
+
     await supabase.auth.updateUser({
-      data: { full_name: name },
+      data: { full_name: name, preferred_name: finalPreferred },
     });
 
-    await supabase
-      .from("profiles")
-      .update({ full_name: name })
-      .eq("id", (await supabase.auth.getUser()).data.user!.id);
+    if (userId) {
+      await supabase
+        .from("profiles")
+        .update({ full_name: name, preferred_name: finalPreferred })
+        .eq("id", userId);
+    }
 
     setSaving(false);
     setSaved(true);
@@ -58,6 +78,23 @@ export default function SettingsPage() {
             onChange={(e) => setName(e.target.value)}
             className="w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
           />
+        </div>
+
+        <div>
+          <label htmlFor="preferredName" className="block text-sm font-medium text-[var(--foreground)] mb-1">
+            What should we call you? <span className="text-[var(--muted)] font-normal">(optional)</span>
+          </label>
+          <input
+            id="preferredName"
+            type="text"
+            value={preferredName}
+            onChange={(e) => setPreferredName(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-white focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
+            placeholder={deriveFirstName(name) || "e.g. J. Paul"}
+          />
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            How you&apos;ll be addressed in your reports. Leave blank to use your first name.
+          </p>
         </div>
 
         <div>
