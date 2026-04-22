@@ -19,6 +19,7 @@ import {
   buildCouplesCall2UserPrompt,
 } from "@/lib/report/comparison-prompt";
 import { sendScorecardEmail, type ReportRelationshipType } from "@/lib/email/scorecard";
+import { deriveFirstName } from "@/lib/auth/display-name";
 
 type Admin = SupabaseClient;
 
@@ -30,22 +31,26 @@ type Admin = SupabaseClient;
 const LLM_OPTIONS = { model: "claude-opus-4-7", maxTokens: 16000 } as const;
 
 /**
- * Pick the name Claude should use when addressing the user. Prefers the
- * user-supplied preferred_name; otherwise passes full_name through. We
- * intentionally don't auto-shorten full_name here — doing so produces
- * worse output for names whose first token is an initial ("J. Paul
- * Neeley" → "J."). Users who want a specific short form set preferred_name
- * at signup or in Settings.
+ * Pick the two names Claude should use for a person:
+ *   - display: how we address them (body text, per-partner briefs, second
+ *     person, per-factor mentions). Preferred name wins, else the derived
+ *     first name from full_name (handles "J. Paul Neeley" → "J. Paul"),
+ *     else full_name, else the caller's fallback.
+ *   - full: their formal name for the report title and any "cover" context.
+ *     full_name wins, else display, else fallback.
+ * The short vs full split is what lets the report read "J. Paul Neeley &
+ * Turi Munthe" on the cover while addressing them as "J. Paul" and "Turi"
+ * throughout the body.
  */
-function resolveDisplayName(
+function resolveNames(
   profile: { full_name?: string | null; preferred_name?: string | null } | null,
   fallback: string,
-): string {
-  return (
-    profile?.preferred_name?.trim() ||
-    profile?.full_name?.trim() ||
-    fallback
-  );
+): { display: string; full: string } {
+  const preferred = profile?.preferred_name?.trim();
+  const full = profile?.full_name?.trim();
+  const derived = deriveFirstName(profile?.full_name);
+  const display = preferred || derived || full || fallback;
+  return { display, full: full || display || fallback };
 }
 
 /**
@@ -137,12 +142,10 @@ export async function generateComparisonReport(
     .select("full_name, preferred_name")
     .eq("id", invite.to_user_id)
     .single();
-  // Prefer preferred_name (how the user asked to be addressed) over full_name
-  // for Claude's second-person briefs. Fall back to the first token of
-  // full_name so long names aren't used as direct address ("J. Paul Neeley,
-  // here's what to know..." reads formally and wrong).
-  const nameA = resolveDisplayName(profileFrom, "Partner A");
-  const nameB = resolveDisplayName(profileTo, "Partner B");
+  // Two names per person: a short display name for body copy (where Claude
+  // addresses them second-person), and a full name for the cover title.
+  const { display: nameA, full: fullNameA } = resolveNames(profileFrom, "Partner A");
+  const { display: nameB, full: fullNameB } = resolveNames(profileTo, "Partner B");
 
   const compatibility = computeCompatibility(scoresFrom.scores, scoresTo.scores);
 
@@ -189,6 +192,8 @@ export async function generateComparisonReport(
         apiKey,
         nameA,
         nameB,
+        fullNameA,
+        fullNameB,
         scoresA: scoresFrom.scores,
         scoresB: scoresTo.scores,
         compatibility,
@@ -198,6 +203,8 @@ export async function generateComparisonReport(
         apiKey,
         nameA,
         nameB,
+        fullNameA,
+        fullNameB,
         scoresA: scoresFrom.scores,
         scoresB: scoresTo.scores,
         compatibility,
@@ -207,6 +214,8 @@ export async function generateComparisonReport(
         apiKey,
         nameA,
         nameB,
+        fullNameA,
+        fullNameB,
         scoresA: scoresFrom.scores,
         scoresB: scoresTo.scores,
         compatibility,
@@ -272,11 +281,13 @@ async function generateFriendsContent(params: {
   apiKey: string;
   nameA: string;
   nameB: string;
+  fullNameA: string;
+  fullNameB: string;
   scoresA: number[];
   scoresB: number[];
   compatibility: ReturnType<typeof computeCompatibility>;
 }): Promise<string> {
-  const { apiKey, nameA, nameB, scoresA, scoresB, compatibility } = params;
+  const { apiKey, nameA, nameB, fullNameA, fullNameB, scoresA, scoresB, compatibility } = params;
 
   let call1Json: Record<string, unknown> | null = null;
   let call1Analysis: string;
@@ -320,18 +331,20 @@ async function generateFriendsContent(params: {
   }
 
   const scoreTable = buildComparisonScoreTable(scoresA, scoresB, nameA, nameB);
-  return assembleFriendsReport({ nameA, nameB, call1Json, call2Content, scoreTable });
+  return assembleFriendsReport({ nameA, nameB, fullNameA, fullNameB, call1Json, call2Content, scoreTable });
 }
 
 async function generateCouplesContent(params: {
   apiKey: string;
   nameA: string;
   nameB: string;
+  fullNameA: string;
+  fullNameB: string;
   scoresA: number[];
   scoresB: number[];
   compatibility: ReturnType<typeof computeCompatibility>;
 }): Promise<string> {
-  const { apiKey, nameA, nameB, scoresA, scoresB, compatibility } = params;
+  const { apiKey, nameA, nameB, fullNameA, fullNameB, scoresA, scoresB, compatibility } = params;
 
   let call1Json: Record<string, unknown> | null = null;
   let call1Analysis: string;
@@ -375,18 +388,20 @@ async function generateCouplesContent(params: {
   }
 
   const scoreTable = buildComparisonScoreTable(scoresA, scoresB, nameA, nameB);
-  return assembleCouplesReport({ nameA, nameB, call1Json, call2Content, scoreTable });
+  return assembleCouplesReport({ nameA, nameB, fullNameA, fullNameB, call1Json, call2Content, scoreTable });
 }
 
 async function generateCofoundersContent(params: {
   apiKey: string;
   nameA: string;
   nameB: string;
+  fullNameA: string;
+  fullNameB: string;
   scoresA: number[];
   scoresB: number[];
   compatibility: ReturnType<typeof computeCompatibility>;
 }): Promise<string> {
-  const { apiKey, nameA, nameB, scoresA, scoresB, compatibility } = params;
+  const { apiKey, nameA, nameB, fullNameA, fullNameB, scoresA, scoresB, compatibility } = params;
 
   let call1Json: Record<string, unknown> | null = null;
   let call1Analysis: string;
@@ -469,7 +484,7 @@ async function generateCofoundersContent(params: {
 
   let content = `# Co-Founder Compatibility Report
 
-**${nameA} & ${nameB}**
+**${fullNameA} & ${fullNameB}**
 
 *A comparative analysis across 48 dimensions of how you think, what you value, and how your minds work.*
 
@@ -650,11 +665,13 @@ async function sendScorecardEmailsToBoth(params: {
 function assembleFriendsReport(params: {
   nameA: string;
   nameB: string;
+  fullNameA: string;
+  fullNameB: string;
   call1Json: Record<string, unknown> | null;
   call2Content: string;
   scoreTable: string;
 }): string {
-  const { nameA, nameB, call1Json, call2Content, scoreTable } = params;
+  const { nameA, nameB, fullNameA, fullNameB, call1Json, call2Content, scoreTable } = params;
 
   type Item = {
     element?: string;
@@ -687,7 +704,7 @@ function assembleFriendsReport(params: {
 
   let content = `# Friendship Comparison Report
 
-**${nameA} & ${nameB}**
+**${fullNameA} & ${fullNameB}**
 
 *A mirror for two minds that have chosen each other. A comparative look across 48 dimensions of how you think, what you value, and how your minds work.*
 
@@ -794,11 +811,13 @@ ${signature.portrait || ""}
 function assembleCouplesReport(params: {
   nameA: string;
   nameB: string;
+  fullNameA: string;
+  fullNameB: string;
   call1Json: Record<string, unknown> | null;
   call2Content: string;
   scoreTable: string;
 }): string {
-  const { nameA, nameB, call1Json, call2Content, scoreTable } = params;
+  const { nameA, nameB, fullNameA, fullNameB, call1Json, call2Content, scoreTable } = params;
 
   type Item = {
     element?: string;
@@ -829,7 +848,7 @@ function assembleCouplesReport(params: {
 
   let content = `# Couples Compatibility Report
 
-**${nameA} & ${nameB}**
+**${fullNameA} & ${fullNameB}**
 
 *A structured mirror for two minds. A comparative look across 48 dimensions of how you think, what you value, and how your minds work.*
 

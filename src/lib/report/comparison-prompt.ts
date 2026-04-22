@@ -12,6 +12,19 @@ import { ELEMENTS } from "@/lib/scoring/elements";
 import { getScoreLevel } from "@/lib/scoring/engine";
 import type { CompatibilityResult } from "@/lib/scoring/compatibility";
 
+/**
+ * Strong naming rule woven into every user prompt. Claude has a habit of
+ * picking up "Partner A" / "Friend A" as vocatives when they appear as
+ * labels in the prompt text, and the result is reports addressed to
+ * "Partner A" instead of a real person. This instruction is deliberately
+ * explicit and restated for every call so it can't be missed.
+ */
+function buildNamingRule(nameA: string, nameB: string): string {
+  return `## Naming — MANDATORY
+
+Always use the exact names "${nameA}" and "${nameB}" when referring to the two people in prose, section headings, direct address, and every JSON string value. NEVER use "Partner A", "Partner B", "Friend A", "Friend B", "A", "B", or any other schema label as a form of address in the output — those labels are for internal field organization only.`;
+}
+
 function buildScorePair(scoresA: number[], scoresB: number[], nameA: string, nameB: string): string {
   return ELEMENTS.map((el, i) => {
     const a = scoresA[i];
@@ -114,8 +127,8 @@ Return ONLY valid JSON matching this structure (no commentary, no code fences):
   ],
   "overallNarrative": "3-4 sentences summarizing the partnership's signature pattern — what makes it unique, where it's strongest, what needs the most attention",
   "scoreRationale": "2-3 sentences explaining why the compatibility score landed where it did",
-  "partnerBriefA": "A warm, empathetic paragraph (4-6 sentences) addressed directly to Partner A about working with Partner B. Written in second person ('you'). Help A understand what makes B tick: what B needs to do their best work, what drives them, how B processes stress differently, and what A should appreciate about B that might not be obvious. Reference 3-4 specific scores. Tone: caring, encouraging, like a wise mentor who genuinely wants this partnership to thrive. Not clinical. Not a warning list. A love letter to working together.",
-  "partnerBriefB": "Same as above, but addressed to Partner B about working with Partner A."
+  "partnerBriefA": "A warm, empathetic paragraph (4-6 sentences) addressed directly to the first person BY NAME about working with the second person. Written in second person ('you'). Start by addressing them: e.g. '{first person's name}, here's what to know about {second person's name}:' Help them understand what makes the other tick: what the second person needs to do their best work, what drives them, how they process stress differently, and what to appreciate about the second person that might not be obvious. Reference 3-4 specific scores. Tone: caring, encouraging, like a wise mentor who genuinely wants this partnership to thrive. Not clinical. Not a warning list. A love letter to working together. Use real names, never 'Partner A' or 'Partner B'.",
+  "partnerBriefB": "Same as above, addressed to the second person by name about working with the first person."
 }
 
 ## Score Interpretation
@@ -151,7 +164,9 @@ export function buildCall1UserPrompt(
       ).join("\n")
     : "No shared blind spots detected.";
 
-  return `Analyze the co-founder compatibility between ${nameA} (Partner A) and ${nameB} (Partner B).
+  return `Analyze the co-founder compatibility between ${nameA} and ${nameB}.
+
+${buildNamingRule(nameA, nameB)}
 
 ## Compatibility Score: ${compatibility.score}/100 — "${compatibility.label}"
 
@@ -312,7 +327,7 @@ Use constructions like:
 - "Many pairs with this profile find..."
 - "There's a good chance you..."
 
-DO NOT use declarative "You are..." constructions to describe traits, tendencies, or feelings. Facts about scores may be stated directly ("Friend A scored high on Openness"). Interpretations of those scores MUST be hedged.
+DO NOT use declarative "You are..." constructions to describe traits, tendencies, or feelings. Facts about scores may be stated directly (e.g. "Alex scored high on Openness", always using the actual names). Interpretations of those scores MUST be hedged.
 
 Strong claims are allowed only for:
 - Cited research findings ("Hall's research shows close friends decline by roughly half every seven years without active maintenance")
@@ -455,7 +470,9 @@ export function buildFriendsCall1UserPrompt(
       ).join("\n")
     : "No shared blind spots detected.";
 
-  return `Generate the analytical sections (1-6) of a Friends Comparison Report for ${nameA} (Friend A) and ${nameB} (Friend B).
+  return `Generate the analytical sections (1-6) of a Friends Comparison Report for ${nameA} and ${nameB}.
+
+${buildNamingRule(nameA, nameB)}
 
 ## Internal Alignment Signal (for your context only — DO NOT mention in output)
 Pattern strength: ${compatibility.score}/100 (${compatibility.label})
@@ -534,10 +551,10 @@ Then 2-3 growth edges for each friend. Each edge pairs a strength with a develop
 
 Use this structure:
 
-### For [Friend A name]
+### For [first friend's actual name]
 - **[Edge name]** — [2-3 sentences. Strength first, then the invitation. "You have the capacity for this, and it would deepen the friendship if you leaned into it."]
 
-### For [Friend B name]
+### For [second friend's actual name]
 - [same structure]
 
 ### Section 11: ## Conversation Prompts
@@ -573,7 +590,9 @@ export function buildFriendsCall2UserPrompt(
 ): string {
   const scorePairs = buildScorePair(scoresA, scoresB, nameA, nameB);
 
-  return `Generate the prescriptive sections (7-11) of the Friends Comparison Report for ${nameA} (Friend A) and ${nameB} (Friend B).
+  return `Generate the prescriptive sections (7-11) of the Friends Comparison Report for ${nameA} and ${nameB}.
+
+${buildNamingRule(nameA, nameB)}
 
 ## Analysis from Sections 1-6 (already generated):
 ${call1Analysis}
@@ -608,7 +627,7 @@ Use constructions like:
 - "There's a good chance you..."
 - "Based on your scores, we'd expect..."
 
-DO NOT use declarative "You are..." constructions to describe traits, tendencies, or feelings. Facts about their Opinion DNA scores may be stated directly ("Partner A scored high on Neuroticism"). Interpretations of those scores MUST be hedged.
+DO NOT use declarative "You are..." constructions to describe traits, tendencies, or feelings. Facts about their Opinion DNA scores may be stated directly (e.g. "Alex scored high on Neuroticism", always using the actual names). Interpretations of those scores MUST be hedged.
 
 Strong claims are allowed only for:
 - Cited research findings ("Gottman's research shows contempt is the strongest predictor of divorce")
@@ -716,8 +735,8 @@ You will produce:
     "flags": ["Array if applicable: 'flooding_risk', 'demand_withdraw_risk', 'frozen_conflict_risk'"]
   },
   "partnerBriefs": {
-    "A": "2-3 hedged sentences directly to Partner A about what their profile suggests about how they connect in a partnership",
-    "B": "2-3 hedged sentences directly to Partner B about what their profile suggests about how they connect in a partnership"
+    "A": "2-3 hedged sentences directly to the first person BY NAME about what their profile suggests about how they connect in a partnership (use the real name, never 'Partner A')",
+    "B": "2-3 hedged sentences directly to the second person BY NAME (use the real name, never 'Partner B')"
   }
 }
 \`\`\`
@@ -754,7 +773,9 @@ export function buildCouplesCall1UserPrompt(
       ).join("\n")
     : "No shared blind spots detected.";
 
-  return `Generate the analytical sections (1-6) of a Couples Comparison Report for ${nameA} (Partner A) and ${nameB} (Partner B).
+  return `Generate the analytical sections (1-6) of a Couples Comparison Report for ${nameA} and ${nameB}.
+
+${buildNamingRule(nameA, nameB)}
 
 ## Internal Compatibility Signal (for your context only — DO NOT mention in output)
 Pattern strength: ${compatibility.score}/100 (${compatibility.label})
@@ -850,10 +871,10 @@ Then 2-3 growth edges for each partner. Each edge pairs a strength with a develo
 
 Use this structure:
 
-### For [Partner A name]
+### For [first partner's actual name]
 - **[Edge name]** — [2-3 sentences. Strength first, then the invitation to lean into. "You have the capacity for this, and it would help the relationship if you leaned into it."]
 
-### For [Partner B name]
+### For [second partner's actual name]
 - [same structure]
 
 ### Section 11: ## Conversation Prompts
@@ -888,7 +909,9 @@ export function buildCouplesCall2UserPrompt(
 ): string {
   const scorePairs = buildScorePair(scoresA, scoresB, nameA, nameB);
 
-  return `Generate the prescriptive sections (7-11) of the Couples Comparison Report for ${nameA} (Partner A) and ${nameB} (Partner B).
+  return `Generate the prescriptive sections (7-11) of the Couples Comparison Report for ${nameA} and ${nameB}.
+
+${buildNamingRule(nameA, nameB)}
 
 ## Analysis from Sections 1-6 (already generated):
 ${call1Analysis}
