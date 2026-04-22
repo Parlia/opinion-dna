@@ -1,6 +1,5 @@
 import { ImageResponse } from "next/og";
 
-export const runtime = "edge";
 export const alt =
   "Opinion DNA — 48 dimensions of personality, values, and meta-thinking";
 export const size = { width: 1200, height: 630 };
