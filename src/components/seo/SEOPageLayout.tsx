@@ -386,7 +386,7 @@ export default function SEOPageLayout({
     <>
       {jsonLd?.map((data, i) => <JsonLd key={i} data={data} />)}
       <Header />
-      <main className="relative pt-24 pb-16">
+      <main className="relative pt-24">
         {/* Animated gradient strip — matches Hero */}
         <div className="absolute top-0 left-0 right-0 h-[300px] -z-10 opacity-30 overflow-hidden">
           <div
@@ -405,7 +405,12 @@ export default function SEOPageLayout({
             }}
           />
         </div>
-        <div className="max-w-4xl mx-auto px-6">{children}</div>
+        {/* pb goes on the article column, not main — if afterContent is present
+            it renders the full-bleed closing CTA and we want it flush with the
+            footer, no trailing gap of main padding. */}
+        <div className={`max-w-4xl mx-auto px-6 ${afterContent ? "" : "pb-16"}`}>
+          {children}
+        </div>
         {afterContent}
       </main>
       <Footer />
