@@ -52,6 +52,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
+  // Both parties must have scores before a selection can move forward.
+  // Previously we'd happily create selections / confirmations as long as the
+  // personal PURCHASE was in place, then the report-gen would 400 and the UI
+  // would get stuck on "Generating your report (2-4 min)" forever.
+  const { data: scoreRows } = await admin
+    .from("user_scores")
+    .select("user_id")
+    .in(
+      "user_id",
+      [invite.from_user_id, invite.to_user_id].filter(Boolean) as string[]
+    );
+  const scoredIds = new Set(
+    (scoreRows ?? []).map((r) => (r as { user_id: string }).user_id)
+  );
+  const selfHasScores = scoredIds.has(user.id);
+  const partnerId =
+    user.id === invite.from_user_id ? invite.to_user_id : invite.from_user_id;
+  const partnerHasScores = !!partnerId && scoredIds.has(partnerId);
+
   // Check for existing selection for this (invite, type)
   const { data: existing } = await admin
     .from("comparison_selections")
@@ -76,6 +95,21 @@ export async function POST(request: Request) {
 
   // ── Partner selected, I'm confirming ────────────────────────────────────
   if (existing && existing.selected_by !== user.id && !existing.confirmed_by) {
+    if (!selfHasScores) {
+      return NextResponse.json({
+        status: "needs_assessment",
+        who: "self",
+      });
+    }
+    if (!partnerHasScores) {
+      // The partner picked the type but hasn't taken their quiz yet. Don't
+      // flip to confirmed — the report would fail to generate and leave the
+      // UI stuck on "Generating".
+      return NextResponse.json({
+        status: "awaiting_partner_assessment",
+      });
+    }
+
     await admin
       .from("comparison_selections")
       .update({ confirmed_by: user.id, confirmed_at: new Date().toISOString() })
@@ -104,12 +138,26 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── Both already confirmed but no report yet (generation in progress) ───
+  // ── Both already confirmed but no report yet ────────────────────────────
+  // If scores are present this means generation is actually in progress. If
+  // scores are missing (the Alessandra case) surface that so the UI stops
+  // claiming "Generating" and tells J. Paul the truth.
   if (existing && existing.confirmed_by) {
+    if (!selfHasScores || !partnerHasScores) {
+      return NextResponse.json({
+        status: "awaiting_partner_assessment",
+      });
+    }
     return NextResponse.json({ status: "generating" });
   }
 
   // ── No selection exists — this is a new selection ───────────────────────
+
+  // Don't let the user create a selection until they've finished their own
+  // quiz — the report can't be generated from a non-existent score set.
+  if (!selfHasScores) {
+    return NextResponse.json({ status: "needs_assessment", who: "self" });
+  }
 
   // For paid types, verify a purchase exists
   if (PAID_TYPES.has(relationshipType)) {

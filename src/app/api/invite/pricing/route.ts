@@ -68,6 +68,21 @@ export async function GET(request: Request) {
     .eq("relationship_type", relationshipType)
     .single();
 
+  // Check who has actually completed the quiz (has a user_scores row).
+  // bothAssessed in pricing.ts only reflects whether they PAID for the
+  // personal assessment — it's possible to pay but never finish the quiz.
+  // Without scores we can't generate a comparison report, so the UI needs
+  // to surface the missing party.
+  const { data: scoreRows } = await admin
+    .from("user_scores")
+    .select("user_id")
+    .in("user_id", [invite.from_user_id, invite.to_user_id]);
+  const scoredIds = new Set((scoreRows ?? []).map((r) => (r as { user_id: string }).user_id));
+  const inviterHasScores = scoredIds.has(invite.from_user_id);
+  const inviteeHasScores = !!invite.to_user_id && scoredIds.has(invite.to_user_id);
+  const selfHasScores = user.id === invite.from_user_id ? inviterHasScores : inviteeHasScores;
+  const partnerHasScores = user.id === invite.from_user_id ? inviteeHasScores : inviterHasScores;
+
   // Determine selection state relative to current user
   let selectionState: "none" | "i_selected" | "partner_selected" | "both_selected" | "complete" = "none";
   if (selection?.report_id) {
@@ -89,5 +104,7 @@ export async function GET(request: Request) {
     selectionState,
     reportId: selection?.report_id || null,
     compatibilityScore: selection?.compatibility_score || null,
+    selfHasScores,
+    partnerHasScores,
   });
 }

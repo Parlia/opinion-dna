@@ -33,6 +33,8 @@ interface PricingData {
   selectionState: "none" | "i_selected" | "partner_selected" | "both_selected" | "complete";
   reportId: string | null;
   compatibilityScore: number | null;
+  selfHasScores?: boolean;
+  partnerHasScores?: boolean;
 }
 
 const RELATIONSHIP_TYPES = ["friends", "couples", "cofounders"] as const;
@@ -426,50 +428,104 @@ function ComparePage() {
     } else if (!typePricing) {
       actionElement = null;
     } else if (typePricing.selectionState === "both_selected") {
-      actionElement = (
-        <span className="flex items-center gap-2 text-xs text-[var(--muted)]" title="Reports typically take 2-4 minutes to generate.">
-          <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          Generating your report (2-4 min)...
-        </span>
-      );
+      // Both have clicked through, but we still need actual score sets on
+      // both sides before the report can generate. If either is missing,
+      // don't lie about "Generating (2-4 min)" — surface the real blocker.
+      if (typePricing.selfHasScores === false) {
+        actionElement = (
+          <Link
+            href="/quiz"
+            className="text-xs text-amber-700 underline-offset-2 hover:underline"
+          >
+            Finish your own assessment to generate
+          </Link>
+        );
+      } else if (typePricing.partnerHasScores === false) {
+        actionElement = (
+          <span className="text-xs text-amber-700" title={`${partnerName} hasn't finished their assessment yet. The report will generate automatically once they do.`}>
+            Waiting for {partnerName} to finish their assessment
+          </span>
+        );
+      } else {
+        actionElement = (
+          <span className="flex items-center gap-2 text-xs text-[var(--muted)]" title="Reports typically take 2-4 minutes to generate.">
+            <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Generating your report (2-4 min)...
+          </span>
+        );
+      }
     } else if (typePricing.selectionState === "i_selected") {
-      actionElement = (
-        <span className="text-xs text-amber-700" title={`You selected ${TYPE_LABELS[type]}. Waiting for ${partnerName} to confirm before we generate the report.`}>
-          Waiting for {partnerName} to confirm
-        </span>
-      );
+      if (typePricing.partnerHasScores === false) {
+        actionElement = (
+          <span className="text-xs text-amber-700">
+            Waiting for {partnerName} to finish their assessment
+          </span>
+        );
+      } else {
+        actionElement = (
+          <span className="text-xs text-amber-700" title={`You selected ${TYPE_LABELS[type]}. Waiting for ${partnerName} to confirm before we generate the report.`}>
+            Waiting for {partnerName} to confirm
+          </span>
+        );
+      }
     } else if (typePricing.selectionState === "partner_selected") {
-      actionElement = (
-        <button
-          onClick={() => handleSelectType(invite.id, type)}
-          disabled={isSelecting}
-          title={`${partnerName} wants to generate a ${TYPE_LABELS[type]} report. Confirm to continue.`}
-          className="px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[40px]"
-          style={{ backgroundColor: "var(--primary)", color: "white" }}
-        >
-          {isSelecting ? "Confirming..." : `Confirm ${TYPE_LABELS[type]}`}
-        </button>
-      );
-    } else if (typePricing.selectionState === "none" && typePricing.bothAssessed) {
-      actionElement = (
-        <button
-          onClick={() => handleSelectType(invite.id, type)}
-          disabled={isSelecting}
-          className="px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[40px]"
-          style={{ backgroundColor: "var(--primary)", color: "white" }}
-        >
-          {isSelecting ? "..." : "Select"}
-        </button>
-      );
-    } else if (typePricing.selectionState === "none" && !typePricing.bothAssessed) {
-      actionElement = (
-        <span className="text-xs text-[var(--muted)]">
-          Waiting for {partnerName} to take their assessment
-        </span>
-      );
+      if (typePricing.selfHasScores === false) {
+        actionElement = (
+          <Link
+            href="/quiz"
+            className="text-xs text-amber-700 underline-offset-2 hover:underline"
+          >
+            Finish your assessment to confirm
+          </Link>
+        );
+      } else {
+        actionElement = (
+          <button
+            onClick={() => handleSelectType(invite.id, type)}
+            disabled={isSelecting}
+            title={`${partnerName} wants to generate a ${TYPE_LABELS[type]} report. Confirm to continue.`}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[40px]"
+            style={{ backgroundColor: "var(--primary)", color: "white" }}
+          >
+            {isSelecting ? "Confirming..." : `Confirm ${TYPE_LABELS[type]}`}
+          </button>
+        );
+      }
+    } else if (typePricing.selectionState === "none") {
+      // Use score presence (authoritative), falling back to bothAssessed for
+      // any endpoint that hasn't been redeployed yet.
+      const selfReady = typePricing.selfHasScores ?? typePricing.bothAssessed;
+      const partnerReady = typePricing.partnerHasScores ?? typePricing.bothAssessed;
+      if (!selfReady) {
+        actionElement = (
+          <Link
+            href="/quiz"
+            className="text-xs text-amber-700 underline-offset-2 hover:underline"
+          >
+            Finish your assessment to select
+          </Link>
+        );
+      } else if (!partnerReady) {
+        actionElement = (
+          <span className="text-xs text-[var(--muted)]">
+            Waiting for {partnerName} to finish their assessment
+          </span>
+        );
+      } else {
+        actionElement = (
+          <button
+            onClick={() => handleSelectType(invite.id, type)}
+            disabled={isSelecting}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[40px]"
+            style={{ backgroundColor: "var(--primary)", color: "white" }}
+          >
+            {isSelecting ? "..." : "Select"}
+          </button>
+        );
+      }
     }
 
     return (
