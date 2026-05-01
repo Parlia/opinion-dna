@@ -670,12 +670,15 @@ function ComparePage() {
           </span>
         );
       } else {
-        // Carry the price on the button itself for paid types — feels less
-        // bait-and-switch than "Select" then a Stripe redirect. For free
-        // types (friends, or already-paid races) keep the bare "Select".
-        const buttonLabel = typePricing.isFree
-          ? "Select"
-          : `Buy for $${typePricing.price}`;
+        // Carry the price/CTA on the button itself — feels less bait-and-
+        // switch than "Select" then a Stripe redirect, and gives the free
+        // friends row a friendlier hook than a bare verb.
+        const buttonLabel =
+          type === "friends"
+            ? "Compare now — it's free!"
+            : typePricing.isFree
+              ? "Select"
+              : `Buy for $${typePricing.price}`;
         actionElement = (
           <button
             onClick={() => handleSelectType(invite.id, type)}
