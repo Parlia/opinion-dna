@@ -643,7 +643,7 @@ function ComparePage() {
             className="px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[40px]"
             style={{ backgroundColor: "var(--primary)", color: "white" }}
           >
-            {isSelecting ? "Confirming..." : `Confirm ${TYPE_LABELS[type]}`}
+            {isSelecting ? "Confirming..." : "Confirm comparison"}
           </button>
         );
       }
@@ -670,6 +670,12 @@ function ComparePage() {
           </span>
         );
       } else {
+        // Carry the price on the button itself for paid types — feels less
+        // bait-and-switch than "Select" then a Stripe redirect. For free
+        // types (friends, or already-paid races) keep the bare "Select".
+        const buttonLabel = typePricing.isFree
+          ? "Select"
+          : `Buy for $${typePricing.price}`;
         actionElement = (
           <button
             onClick={() => handleSelectType(invite.id, type)}
@@ -677,7 +683,7 @@ function ComparePage() {
             className="px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[40px]"
             style={{ backgroundColor: "var(--primary)", color: "white" }}
           >
-            {isSelecting ? "..." : "Select"}
+            {isSelecting ? "..." : buttonLabel}
           </button>
         );
       }
@@ -699,14 +705,12 @@ function ComparePage() {
             <span aria-hidden="true">{typeStyle.icon}</span>
             {TYPE_LABELS[type]}
           </span>
-          {priceLabel === "Free" ? (
+          {priceLabel === "Free" && (
             type === "friends" ? (
               <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">Free</span>
             ) : (
               <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Paid</span>
             )
-          ) : (
-            <span className="text-xs text-[var(--muted)]">{priceLabel}</span>
           )}
         </div>
         <div className="min-w-0 text-right flex items-center gap-3 justify-end flex-wrap">
