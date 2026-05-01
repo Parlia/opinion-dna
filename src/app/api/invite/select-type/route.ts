@@ -52,24 +52,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  // Both parties must have scores before a selection can move forward.
-  // Previously we'd happily create selections / confirmations as long as the
-  // personal PURCHASE was in place, then the report-gen would 400 and the UI
-  // would get stuck on "Generating your report (2-4 min)" forever.
-  const { data: scoreRows } = await admin
-    .from("user_scores")
-    .select("user_id")
-    .in(
-      "user_id",
-      [invite.from_user_id, invite.to_user_id].filter(Boolean) as string[]
-    );
+  // Both parties must have a completed personal purchase AND a user_scores
+  // row before a selection can move forward. Even friends comparisons need
+  // both — without scores the report can't generate, and without a personal
+  // purchase the partner can't even take the assessment. Surface these
+  // separately so the UI can route the user to the right action.
+  const participantIds = [invite.from_user_id, invite.to_user_id].filter(Boolean) as string[];
+  const [scoreRowsResult, personalPurchasesResult] = await Promise.all([
+    admin
+      .from("user_scores")
+      .select("user_id")
+      .in("user_id", participantIds),
+    admin
+      .from("purchases")
+      .select("user_id")
+      .in("user_id", participantIds)
+      .eq("type", "personal")
+      .eq("status", "completed"),
+  ]);
   const scoredIds = new Set(
-    (scoreRows ?? []).map((r) => (r as { user_id: string }).user_id)
+    (scoreRowsResult.data ?? []).map((r) => (r as { user_id: string }).user_id),
+  );
+  const personalPaidIds = new Set(
+    (personalPurchasesResult.data ?? []).map(
+      (r) => (r as { user_id: string }).user_id,
+    ),
   );
   const selfHasScores = scoredIds.has(user.id);
+  const selfPaidPersonal = personalPaidIds.has(user.id);
   const partnerId =
     user.id === invite.from_user_id ? invite.to_user_id : invite.from_user_id;
   const partnerHasScores = !!partnerId && scoredIds.has(partnerId);
+  const partnerPaidPersonal = !!partnerId && personalPaidIds.has(partnerId);
 
   // Check for existing selection for this (invite, type)
   const { data: existing } = await admin
@@ -95,16 +109,16 @@ export async function POST(request: Request) {
 
   // ── Partner selected, I'm confirming ────────────────────────────────────
   if (existing && existing.selected_by !== user.id && !existing.confirmed_by) {
-    if (!selfHasScores) {
+    if (!selfPaidPersonal || !selfHasScores) {
       return NextResponse.json({
         status: "needs_assessment",
         who: "self",
       });
     }
-    if (!partnerHasScores) {
-      // The partner picked the type but hasn't taken their quiz yet. Don't
-      // flip to confirmed — the report would fail to generate and leave the
-      // UI stuck on "Generating".
+    if (!partnerPaidPersonal || !partnerHasScores) {
+      // The partner picked the type but hasn't taken (or paid for) their
+      // personal assessment yet. Don't flip to confirmed — the report would
+      // fail to generate and leave the UI stuck on "Generating".
       return NextResponse.json({
         status: "awaiting_partner_assessment",
       });
@@ -143,7 +157,12 @@ export async function POST(request: Request) {
   // scores are missing (the Alessandra case) surface that so the UI stops
   // claiming "Generating" and tells J. Paul the truth.
   if (existing && existing.confirmed_by) {
-    if (!selfHasScores || !partnerHasScores) {
+    if (
+      !selfPaidPersonal ||
+      !partnerPaidPersonal ||
+      !selfHasScores ||
+      !partnerHasScores
+    ) {
       return NextResponse.json({
         status: "awaiting_partner_assessment",
       });
@@ -153,10 +172,16 @@ export async function POST(request: Request) {
 
   // ── No selection exists — this is a new selection ───────────────────────
 
-  // Don't let the user create a selection until they've finished their own
-  // quiz — the report can't be generated from a non-existent score set.
-  if (!selfHasScores) {
+  // Don't let the user create a selection until they've paid for AND
+  // finished their own personal assessment — the report can't be generated
+  // from a non-existent score set, and a partner who hasn't done theirs
+  // can't fulfill it either. This applies to friends too: free comparison
+  // still requires both sides to have a personal report.
+  if (!selfPaidPersonal || !selfHasScores) {
     return NextResponse.json({ status: "needs_assessment", who: "self" });
+  }
+  if (!partnerPaidPersonal || !partnerHasScores) {
+    return NextResponse.json({ status: "awaiting_partner_assessment" });
   }
 
   // For paid types, verify a purchase exists

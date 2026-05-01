@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
+import { recordCompletedPurchase } from "@/lib/stripe/record-purchase";
 import type { PurchaseType } from "@/types/database";
 
 export async function POST(request: NextRequest) {
@@ -42,32 +43,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ verified: false, status: session.payment_status });
   }
 
-  // Check if purchase already recorded (webhook may have fired first)
+  // Insert via the shared helper so columns + idempotency stay in sync with
+  // the webhook path. Either side can fire first depending on Stripe latency.
   const admin = createAdminClient();
-
-  const { data: existing } = await admin
-    .from("purchases")
-    .select("id")
-    .eq("stripe_session_id", session.id)
-    .limit(1);
-
-  if (existing && existing.length > 0) {
-    return NextResponse.json({ verified: true });
-  }
-
-  // Record the purchase
   const productType = (session.metadata?.product_type || "personal") as PurchaseType;
+  const inviteId = session.metadata?.invite_id ?? null;
+  const relationshipType = session.metadata?.relationship_type ?? null;
 
-  const { error } = await admin.from("purchases").insert({
-    user_id: user.id,
-    type: productType,
-    status: "completed",
-    stripe_session_id: session.id,
-    stripe_payment_intent_id:
+  const { error } = await recordCompletedPurchase(admin, {
+    userId: user.id,
+    productType,
+    stripeSessionId: session.id,
+    stripePaymentIntentId:
       typeof session.payment_intent === "string"
         ? session.payment_intent
         : (session.payment_intent?.id ?? null),
-    amount_cents: session.amount_total ?? 0,
+    amountCents: session.amount_total ?? 0,
+    inviteId,
+    relationshipType,
   });
 
   if (error) {

@@ -17,6 +17,7 @@ interface Invite {
   compatibility_score: number | null;
   created_at: string;
   updated_at: string;
+  expires_at: string | null;
 }
 
 interface Participant {
@@ -37,6 +38,8 @@ interface PricingData {
   partnerHasScores?: boolean;
   selfHasPurchase?: boolean;
   partnerHasPurchase?: boolean;
+  selfPaidPersonal?: boolean;
+  partnerPaidPersonal?: boolean;
   reportGenerationStale?: boolean;
   dismissed?: boolean;
 }
@@ -211,13 +214,13 @@ function ComparePage() {
 
       const { data: sentInvites } = await supabase
         .from("invites")
-        .select("id, from_user_id, to_email, to_user_id, status, comparison_report_id, compatibility_score, created_at, updated_at")
+        .select("id, from_user_id, to_email, to_user_id, status, comparison_report_id, compatibility_score, created_at, updated_at, expires_at")
         .eq("from_user_id", user.id)
         .order("created_at", { ascending: false });
 
       const { data: receivedInvites } = await supabase
         .from("invites")
-        .select("id, from_user_id, to_email, to_user_id, status, comparison_report_id, compatibility_score, created_at, updated_at")
+        .select("id, from_user_id, to_email, to_user_id, status, comparison_report_id, compatibility_score, created_at, updated_at, expires_at")
         .eq("to_user_id", user.id)
         .eq("status", "accepted")
         .order("created_at", { ascending: false });
@@ -495,7 +498,10 @@ function ComparePage() {
       const result = await res.json();
       if (result.ok) {
         setInvites(prev => prev.filter(i => i.id !== inviteId));
-        toast.info("Invite cancelled");
+        toast.info(
+          "Invite cancelled",
+          "You can invite them again from Invite Someone whenever you like.",
+        );
       } else {
         toast.error(result.error || "Failed to cancel");
       }
@@ -505,7 +511,16 @@ function ComparePage() {
     setActionLoading(null);
   }
 
-  const pending = invites.filter(i => i.status === "pending");
+  // Pending invites filter: hide rows whose expires_at has elapsed even if
+  // their status column is still 'pending'. The DB row only flips to
+  // 'expired' when someone tries to accept a stale link, so a 31-day-old
+  // pending row would otherwise sit in the UI forever.
+  const now = Date.now();
+  const pending = invites.filter(
+    (i) =>
+      i.status === "pending" &&
+      (!i.expires_at || new Date(i.expires_at).getTime() > now),
+  );
   const joined = invites.filter(i => i.status === "accepted");
 
   // Resolve the "other person" for an invite, regardless of whether the
@@ -678,13 +693,15 @@ function ComparePage() {
         );
       }
     } else if (typePricing.selectionState === "partner_selected") {
-      if (typePricing.selfHasScores === false) {
+      if (typePricing.selfPaidPersonal === false || typePricing.selfHasScores === false) {
         actionElement = (
           <Link
             href="/quiz"
             className="text-xs text-amber-700 underline-offset-2 hover:underline"
           >
-            Finish your assessment to confirm
+            {typePricing.selfPaidPersonal === false
+              ? "Take your personal assessment to confirm"
+              : "Finish your assessment to confirm"}
           </Link>
         );
       } else {
@@ -701,17 +718,44 @@ function ComparePage() {
         );
       }
     } else if (typePricing.selectionState === "none") {
-      // Use score presence (authoritative), falling back to bothAssessed for
-      // any endpoint that hasn't been redeployed yet.
-      const selfReady = typePricing.selfHasScores ?? typePricing.bothAssessed;
+      // Self readiness = paid for personal AND has scores. partnerPaidPersonal
+      // and partnerHasScores are surfaced separately so we can tell the user
+      // whether the partner needs to start vs. finish their assessment.
+      // Falls back to bothAssessed for any endpoint not yet redeployed.
+      const selfReady =
+        (typePricing.selfPaidPersonal ?? typePricing.bothAssessed) &&
+        (typePricing.selfHasScores ?? typePricing.bothAssessed);
+      const partnerReady =
+        (typePricing.partnerPaidPersonal ?? typePricing.bothAssessed) &&
+        (typePricing.partnerHasScores ?? typePricing.bothAssessed);
       if (!selfReady) {
         actionElement = (
           <Link
             href="/quiz"
             className="text-xs text-amber-700 underline-offset-2 hover:underline"
           >
-            Finish your assessment to select
+            {typePricing.selfPaidPersonal === false
+              ? "Take your personal assessment first"
+              : "Finish your assessment to select"}
           </Link>
+        );
+      } else if (!partnerReady) {
+        // Block selection (and any Stripe redirect) until the partner has
+        // a personal report — friends or paid, the comparison can't run
+        // without both sides' scores.
+        actionElement = (
+          <span
+            className="text-xs text-amber-700"
+            title={
+              typePricing.partnerPaidPersonal === false
+                ? `${partnerName} hasn't taken the Opinion DNA personal assessment yet. Comparison needs both sides' scores.`
+                : `${partnerName} started but hasn't finished their assessment yet.`
+            }
+          >
+            {typePricing.partnerPaidPersonal === false
+              ? `Waiting for ${partnerName} to take their assessment`
+              : `Waiting for ${partnerName} to finish their assessment`}
+          </span>
         );
       } else if (typePricing.partnerHasPurchase && !typePricing.selfHasPurchase) {
         // Partner already paid for this report but their selection row hasn't

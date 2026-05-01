@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ProductType } from "@/lib/stripe/products";
+import { recordCompletedPurchase } from "@/lib/stripe/record-purchase";
 
 export async function POST(request: Request) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -37,39 +38,26 @@ export async function POST(request: Request) {
       const inviteId = session.metadata?.invite_id;
       const relationshipType = session.metadata?.relationship_type;
 
-      // Idempotency: Stripe can redeliver checkout.session.completed for up to
-      // 72h. Migration 012 enforces a unique index on purchases.stripe_session_id,
-      // so a replay surfaces as Postgres error 23505 (unique violation) instead
-      // of a duplicate row. Treat that as success and look up the existing row.
-      const { data: purchase, error: insertError } = await supabase
-        .from("purchases")
-        .insert({
-          user_id: userId,
-          type: productType,
-          status: "completed",
-          stripe_session_id: session.id,
-          stripe_payment_intent_id:
+      // Idempotency lives in recordCompletedPurchase — see record-purchase.ts.
+      const { purchaseId, error: recordError } = await recordCompletedPurchase(
+        supabase,
+        {
+          userId,
+          productType,
+          stripeSessionId: session.id,
+          stripePaymentIntentId:
             typeof session.payment_intent === "string"
               ? session.payment_intent
               : session.payment_intent?.id ?? null,
-          amount_cents: session.amount_total ?? 0,
-        })
-        .select("id")
-        .single();
+          amountCents: session.amount_total ?? 0,
+          inviteId: inviteId ?? null,
+          relationshipType: relationshipType ?? null,
+        },
+      );
 
-      if (insertError && insertError.code !== "23505") {
-        console.error("[stripe.webhook] purchase insert failed", insertError);
+      if (recordError) {
+        console.error("[stripe.webhook] purchase insert failed", recordError);
         return NextResponse.json({ error: "purchase insert failed" }, { status: 500 });
-      }
-
-      let purchaseId = purchase?.id;
-      if (!purchaseId) {
-        const { data: existing } = await supabase
-          .from("purchases")
-          .select("id")
-          .eq("stripe_session_id", session.id)
-          .maybeSingle();
-        purchaseId = existing?.id;
       }
 
       if (inviteId && purchaseId) {

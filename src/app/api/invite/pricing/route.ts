@@ -44,15 +44,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  // Get purchases for both users
+  // Get purchases for both users. invite_id + relationship_type are pulled
+  // through so the per-pair "partner paid for THIS pair" check below can
+  // distinguish a Stripe checkout for this comparison from a stray purchase
+  // that hasn't been bound to a selection yet.
   const { data: inviterPurchases } = await admin
     .from("purchases")
-    .select("id, type, status")
+    .select("id, type, status, invite_id, relationship_type")
     .eq("user_id", invite.from_user_id);
 
   const { data: inviteePurchases } = await admin
     .from("purchases")
-    .select("id, type, status")
+    .select("id, type, status, invite_id, relationship_type")
     .eq("user_id", invite.to_user_id);
 
   // Build the set of purchase ids already attached to OTHER comparison
@@ -91,37 +94,68 @@ export async function GET(request: Request) {
     consumedPurchaseIds,
   );
 
-  // Whether the partner (not the current user) has an UNCONSUMED purchase
-  // for this comparison. Lets /compare render "partner has paid" instead of
-  // a second Stripe redirect if both users click Select in the narrow window
-  // between A returning from Stripe and A's selection row getting inserted.
-  // We must check unconsumed (not just any completed) — otherwise a partner
-  // with a stale purchase already attached to a different comparison would
-  // wrongly block this user from paying.
+  // Whether the partner has an UNCONSUMED purchase TAGGED for THIS pair
+  // (invite + relationship_type). Lets /compare render "partner has paid"
+  // in the narrow window between Stripe returning success and the selection
+  // row landing — without false-positives from purchases bound to a
+  // DIFFERENT pair (the previous bug surfaced as "Elliott has paid" on
+  // J. Paul's Couples row when Elliott had only paid for Sammy↔Elliott).
   const purchaseType =
     relationshipType === "couples"
       ? "couples_comparison"
       : relationshipType === "cofounders"
         ? "cofounders_comparison"
         : null;
-  const hasUnconsumedPurchase = (
-    rows: { id: string; type: string; status: string }[] | null | undefined,
-    t: string
+  const hasUnconsumedPurchaseForThisPair = (
+    rows:
+      | {
+          id: string;
+          type: string;
+          status: string;
+          invite_id: string | null;
+          relationship_type: string | null;
+        }[]
+      | null
+      | undefined,
+    t: string,
   ) =>
     (rows ?? []).some(
       (p) =>
         p.type === t &&
         p.status === "completed" &&
-        !consumedPurchaseIds.has(p.id)
+        !consumedPurchaseIds.has(p.id) &&
+        // Only count purchases tagged for this exact pair. Legacy purchases
+        // with invite_id null don't satisfy this — we don't want them to
+        // imply a partner paid for THIS pair when their tag is missing.
+        p.invite_id === inviteId &&
+        p.relationship_type === relationshipType,
     );
   const partnerPurchases =
     user.id === invite.from_user_id ? inviteePurchases : inviterPurchases;
   const selfPurchases =
     user.id === invite.from_user_id ? inviterPurchases : inviteePurchases;
   const partnerHasPurchase =
-    !!purchaseType && hasUnconsumedPurchase(partnerPurchases, purchaseType);
+    !!purchaseType &&
+    hasUnconsumedPurchaseForThisPair(partnerPurchases, purchaseType);
   const selfHasPurchase =
-    !!purchaseType && hasUnconsumedPurchase(selfPurchases, purchaseType);
+    !!purchaseType &&
+    hasUnconsumedPurchaseForThisPair(selfPurchases, purchaseType);
+
+  // Whether each side has a completed personal assessment purchase.
+  // Friends + paid comparisons all require this — without a personal report
+  // there are no scores to compare. Surfaced separately from selfHasScores
+  // so the UI can distinguish "hasn't paid yet" from "paid but quiz unfinished".
+  const hasCompletedPersonal = (
+    rows:
+      | { type: string; status: string }[]
+      | null
+      | undefined,
+  ) =>
+    (rows ?? []).some(
+      (p) => p.type === "personal" && p.status === "completed",
+    );
+  const selfPaidPersonal = hasCompletedPersonal(selfPurchases);
+  const partnerPaidPersonal = hasCompletedPersonal(partnerPurchases);
 
   // Get selection state for this (invite, type) pair
   const { data: selection } = await admin
@@ -181,6 +215,8 @@ export async function GET(request: Request) {
     partnerHasScores,
     selfHasPurchase,
     partnerHasPurchase,
+    selfPaidPersonal,
+    partnerPaidPersonal,
     reportGenerationStale,
     dismissed: !!selection?.dismissed_at,
   });
