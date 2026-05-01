@@ -117,6 +117,22 @@ function ComparePage() {
   const [retryingType, setRetryingType] = useState<string | null>(null);
   const [dismissingType, setDismissingType] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  // Invites addressed to the current user's email that never got linked
+  // because they signed up directly instead of clicking the magic link.
+  // Surfaced as a separate "Invites for you" section so they can accept
+  // without hunting for the original email.
+  const [claimable, setClaimable] = useState<
+    Array<{
+      id: string;
+      from_user_id: string | null;
+      to_email: string;
+      created_at: string;
+    }>
+  >([]);
+  const [inviters, setInviters] = useState<
+    Record<string, { full_name: string | null; email: string | null }>
+  >({});
+  const [claimingId, setClaimingId] = useState<string | null>(null);
 
   // Toast after an invite was just sent (from /compare/invite?invited=email@...)
   useEffect(() => {
@@ -248,6 +264,20 @@ function ComparePage() {
         })
         .catch(() => {
           /* fall back to emails */
+        });
+
+      // Pending invites addressed to this user's email but not yet linked
+      // (they signed up without clicking the magic link). Same admin-only
+      // lookup as participants — RLS hides invites where neither party id
+      // is set to the current user.
+      fetch("/api/invite/claimable")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.invites) setClaimable(data.invites);
+          if (data?.inviters) setInviters(data.inviters);
+        })
+        .catch(() => {
+          /* non-fatal */
         });
 
       // "Example report" cards are only for the dedicated seed account. Other
@@ -405,6 +435,29 @@ function ComparePage() {
       toast.error("Network error", "Check your connection and try again.");
     }
     setDismissingType(null);
+  }
+
+  async function handleClaim(inviteId: string) {
+    setClaimingId(inviteId);
+    try {
+      const res = await fetch("/api/invite/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteId }),
+      });
+      const result = await res.json();
+      if (result.ok) {
+        // Remove from claimable list immediately; loadData on next page
+        // load will refetch the now-accepted invite into the Joined section.
+        setClaimable((prev) => prev.filter((i) => i.id !== inviteId));
+        toast.success("Invite accepted", "Reload to see them under Joined.");
+      } else {
+        toast.error(result.error || "Failed to accept invite");
+      }
+    } catch {
+      toast.error("Network error", "Check your connection and try again.");
+    }
+    setClaimingId(null);
   }
 
   async function handleResend(inviteId: string) {
@@ -764,6 +817,43 @@ function ComparePage() {
       </div>
 
       <div className="space-y-10">
+        {/* Invites for you — pending invites addressed to this user's email
+            that never got linked (they signed up without clicking the magic
+            link). Hidden when there are none. */}
+        {claimable.length > 0 && (
+          <section>
+            <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">Invites for you</h2>
+            <div className="bg-white rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
+              {claimable.map((invite) => {
+                const inviter = invite.from_user_id ? inviters[invite.from_user_id] : null;
+                const displayName = inviter?.full_name || inviter?.email || "Someone";
+                const initial = (inviter?.full_name || inviter?.email || "?").charAt(0).toUpperCase();
+                return (
+                  <div key={invite.id} className="px-4 py-4 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-sm" style={{ backgroundColor: "var(--beige-light)", color: "var(--muted)" }}>
+                        {initial}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-[var(--foreground)] truncate">{displayName} invited you</p>
+                        <p className="text-sm text-[var(--muted)]">Invited {new Date(invite.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleClaim(invite.id)}
+                      disabled={claimingId === invite.id}
+                      className="self-end sm:self-auto px-4 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 min-h-[40px]"
+                      style={{ backgroundColor: "var(--primary)", color: "white" }}
+                    >
+                      {claimingId === invite.id ? "Accepting..." : "Accept invite"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Pending */}
         <section>
           <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">Pending</h2>
