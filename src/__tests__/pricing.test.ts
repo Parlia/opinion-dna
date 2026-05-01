@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { calculateComparisonPrice } from "@/lib/stripe/pricing";
 
-const assessed = { type: "personal", status: "completed" };
-const refunded = { type: "personal", status: "refunded" };
-const hasCofounders = { type: "cofounders_comparison", status: "completed" };
+const assessed = { id: "p-assessed", type: "personal", status: "completed" };
+const refunded = { id: "p-refunded", type: "personal", status: "refunded" };
+const hasCofounders = { id: "p-cofounders", type: "cofounders_comparison", status: "completed" };
 
 describe("calculateComparisonPrice", () => {
   it("both assessed + cofounders = $399", () => {
@@ -48,5 +48,20 @@ describe("calculateComparisonPrice", () => {
   it("refunded assessment is not counted", () => {
     const result = calculateComparisonPrice([refunded], [assessed], "cofounders");
     expect(result.bothAssessed).toBe(false);
+  });
+
+  it("consumed comparison purchase no longer counts as free", () => {
+    // The cofounders purchase is already attached to a different selection,
+    // so this comparison must require a fresh payment.
+    const consumed = new Set<string>(["p-cofounders"]);
+    const result = calculateComparisonPrice(
+      [assessed, hasCofounders],
+      [assessed],
+      "cofounders",
+      consumed,
+    );
+    expect(result.isFree).toBe(false);
+    expect(result.price).toBe(399);
+    expect(result.product?.id).toBe("cofounders_comparison");
   });
 });

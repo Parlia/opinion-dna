@@ -47,43 +47,71 @@ export async function GET(request: Request) {
   // Get purchases for both users
   const { data: inviterPurchases } = await admin
     .from("purchases")
-    .select("type, status")
+    .select("id, type, status")
     .eq("user_id", invite.from_user_id);
 
   const { data: inviteePurchases } = await admin
     .from("purchases")
-    .select("type, status")
+    .select("id, type, status")
     .eq("user_id", invite.to_user_id);
+
+  // Build the set of purchase ids already attached to OTHER comparison
+  // selections — those are "consumed" and don't count as paid-for-this-pair.
+  // Excluding the selection for the current (invite, type) lets a purchase
+  // already attached to this exact row still register as paid for itself.
+  const userIds = [invite.from_user_id, invite.to_user_id].filter(Boolean) as string[];
+  const { data: consumedRows } = await admin
+    .from("comparison_selections")
+    .select("invite_id, relationship_type, purchase_id")
+    .in("selected_by", userIds)
+    .not("purchase_id", "is", null);
+  const consumedPurchaseIds = new Set<string>(
+    (consumedRows ?? [])
+      .filter(
+        (r) =>
+          !(r.invite_id === inviteId && r.relationship_type === relationshipType)
+      )
+      .map((r) => r.purchase_id as string)
+  );
 
   const result = calculateComparisonPrice(
     inviterPurchases || [],
     inviteePurchases || [],
     relationshipType,
+    consumedPurchaseIds,
   );
 
-  // Whether the partner (not the current user) has already completed a
-  // purchase for this comparison. Lets /compare render "partner has paid"
-  // instead of a second Stripe redirect if both users click Select in the
-  // narrow window between A returning from Stripe and A's selection row
-  // getting inserted.
+  // Whether the partner (not the current user) has an UNCONSUMED purchase
+  // for this comparison. Lets /compare render "partner has paid" instead of
+  // a second Stripe redirect if both users click Select in the narrow window
+  // between A returning from Stripe and A's selection row getting inserted.
+  // We must check unconsumed (not just any completed) — otherwise a partner
+  // with a stale purchase already attached to a different comparison would
+  // wrongly block this user from paying.
   const purchaseType =
     relationshipType === "couples"
       ? "couples_comparison"
       : relationshipType === "cofounders"
         ? "cofounders_comparison"
         : null;
-  const hasCompletedPurchase = (
-    rows: { type: string; status: string }[] | null | undefined,
+  const hasUnconsumedPurchase = (
+    rows: { id: string; type: string; status: string }[] | null | undefined,
     t: string
-  ) => (rows ?? []).some((p) => p.type === t && p.status === "completed");
+  ) =>
+    (rows ?? []).some(
+      (p) =>
+        p.type === t &&
+        p.status === "completed" &&
+        !consumedPurchaseIds.has(p.id)
+    );
   const partnerPurchases =
     user.id === invite.from_user_id ? inviteePurchases : inviterPurchases;
   const selfPurchases =
     user.id === invite.from_user_id ? inviterPurchases : inviteePurchases;
   const partnerHasPurchase =
-    !!purchaseType && hasCompletedPurchase(partnerPurchases, purchaseType);
+    !!purchaseType && hasUnconsumedPurchase(partnerPurchases, purchaseType);
   const selfHasPurchase =
-    !!purchaseType && hasCompletedPurchase(selfPurchases, purchaseType);
+    !!purchaseType && hasUnconsumedPurchase(selfPurchases, purchaseType);
 
   // Get selection state for this (invite, type) pair
   const { data: selection } = await admin

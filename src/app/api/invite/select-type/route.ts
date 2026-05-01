@@ -163,40 +163,61 @@ export async function POST(request: Request) {
   if (PAID_TYPES.has(relationshipType)) {
     const purchaseType = relationshipType === "couples" ? "couples_comparison" : "cofounders_comparison";
 
+    // Per-pair pricing: a purchase only counts if it isn't already attached
+    // to a different (invite, type) selection. Without this filter a single
+    // $49 Couples purchase would silently back unlimited future Couples
+    // comparisons.
+    const { data: consumedRows } = await admin
+      .from("comparison_selections")
+      .select("purchase_id")
+      .not("purchase_id", "is", null);
+    const consumedPurchaseIds = new Set<string>(
+      (consumedRows ?? []).map((r) => r.purchase_id as string)
+    );
+
     let validPurchaseId = purchaseId;
+    if (validPurchaseId && consumedPurchaseIds.has(validPurchaseId)) {
+      // Caller passed a purchaseId that's already been used for another
+      // selection — ignore it and look up an unconsumed one instead.
+      validPurchaseId = undefined;
+    }
 
     if (!validPurchaseId) {
-      // Check if user has any completed purchase of this type
-      const { data: existingPurchase } = await admin
+      // Find the user's first completed purchase of this type that hasn't
+      // already been attached to another selection.
+      const { data: completedPurchases } = await admin
         .from("purchases")
         .select("id")
         .eq("user_id", user.id)
         .eq("type", purchaseType)
-        .eq("status", "completed")
-        .limit(1)
-        .single();
-
-      if (existingPurchase) {
-        validPurchaseId = existingPurchase.id;
+        .eq("status", "completed");
+      const unconsumed = (completedPurchases ?? []).find(
+        (p) => !consumedPurchaseIds.has(p.id as string)
+      );
+      if (unconsumed) {
+        validPurchaseId = unconsumed.id as string;
       }
     }
 
     if (!validPurchaseId) {
       // Before sending this user to Stripe, make sure the partner hasn't
-      // already paid. One purchase is enough to unlock the report; a second
-      // would just be money left on the floor. This catches the race where
-      // two users click Select before the first one's selection row gets
-      // written.
+      // already paid for THIS pair. One purchase is enough to unlock a
+      // single report; a second would just be money left on the floor.
+      // This catches the race where two users click Select before the
+      // first one's selection row gets written. The unconsumed filter is
+      // critical — without it, a partner's stale already-attached purchase
+      // would block this user from ever paying.
       if (partnerId) {
-        const { data: partnerPurchase } = await admin
+        const { data: partnerPurchases } = await admin
           .from("purchases")
           .select("id")
           .eq("user_id", partnerId)
           .eq("type", purchaseType)
-          .eq("status", "completed")
-          .limit(1)
-          .maybeSingle();
-        if (partnerPurchase) {
+          .eq("status", "completed");
+        const partnerUnconsumed = (partnerPurchases ?? []).find(
+          (p) => !consumedPurchaseIds.has(p.id as string)
+        );
+        if (partnerUnconsumed) {
           return NextResponse.json({
             status: "partner_paid_waiting",
             message:

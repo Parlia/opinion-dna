@@ -30,6 +30,7 @@ export interface PricingResult {
 }
 
 interface Purchase {
+  id: string;
   type: string;
   status: string;
 }
@@ -40,21 +41,35 @@ function hasCompletedAssessment(purchases: Purchase[]): boolean {
   );
 }
 
-function hasCompletedComparison(
+/**
+ * Per-pair pricing: a comparison purchase only counts as "already paid for"
+ * when it hasn't been consumed by a different selection. `consumedPurchaseIds`
+ * is the set of purchase ids already attached to other comparison_selections
+ * rows — the caller excludes the selection for the current (invite, type) so
+ * the row's own purchase still counts as paid for itself.
+ */
+function hasUnconsumedComparisonPurchase(
   purchases: Purchase[],
-  relationshipType: RelationshipType
+  relationshipType: RelationshipType,
+  consumedPurchaseIds: Set<string>
 ): boolean {
   const type =
     relationshipType === "couples"
       ? "couples_comparison"
       : "cofounders_comparison";
-  return purchases.some((p) => p.status === "completed" && p.type === type);
+  return purchases.some(
+    (p) =>
+      p.status === "completed" &&
+      p.type === type &&
+      !consumedPurchaseIds.has(p.id)
+  );
 }
 
 export function calculateComparisonPrice(
   inviterPurchases: Purchase[],
   inviteePurchases: Purchase[],
-  relationshipType: RelationshipType
+  relationshipType: RelationshipType,
+  consumedPurchaseIds: Set<string> = new Set()
 ): PricingResult {
   const isAvailable = true;
   const bothAssessed =
@@ -72,8 +87,15 @@ export function calculateComparisonPrice(
     };
   }
 
-  // Already purchased this comparison
-  if (hasCompletedComparison(inviterPurchases, relationshipType)) {
+  // Already purchased this comparison (and the purchase isn't already
+  // attached to another selection)
+  if (
+    hasUnconsumedComparisonPurchase(
+      inviterPurchases,
+      relationshipType,
+      consumedPurchaseIds
+    )
+  ) {
     return {
       product: null,
       price: 0,
