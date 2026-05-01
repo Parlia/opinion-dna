@@ -7,59 +7,66 @@
 -- pair — exactly the bug we're trying to kill.
 --
 -- This migration retroactively binds each orphan completed comparison
--- purchase to a legacy report by the same user, in created_at order.
--- Any orphans left over after pairing (duplicate charges, failed flows)
--- stay orphaned and need manual disposition (Stripe refund + status
--- update) — flagging that is a UI / human decision, not migration work.
+-- purchase to a legacy report. Matching rules:
+--   1. The purchase user must be EITHER party of the selection's invite
+--      (selected_by isn't reliable on legacy rows — invites went both
+--      directions and the per-pair payer wasn't always the selector).
+--   2. The product type must match the relationship_type.
+--   3. Selections are processed oldest-first so they get first dibs.
+--   4. Within a selection, prefer the inviter's purchase, then the
+--      earliest purchased_at.
+--   5. A purchase already attached to another selection (incl. one
+--      attached earlier in this same loop) is skipped — no double-bind.
+--
+-- Any orphan purchases left over after this loop have no legacy report
+-- to belong to (true duplicates / failed flows). They stay orphaned and
+-- need manual disposition (Stripe refund + status update). Surfacing
+-- those is a UI / human decision, not migration work.
 
-with orphan_purchases as (
-  select
-    p.id,
-    p.user_id,
-    p.type,
-    p.created_at,
-    row_number() over (
-      partition by p.user_id, p.type
-      order by p.created_at
-    ) as rn
-  from public.purchases p
-  where p.status = 'completed'
-    and p.type in ('couples_comparison', 'cofounders_comparison')
-    and not exists (
-      select 1
-      from public.comparison_selections cs
-      where cs.purchase_id = p.id
-    )
-),
-legacy_selections as (
-  select
-    cs.id,
-    cs.selected_by,
-    cs.relationship_type,
-    cs.created_at,
-    row_number() over (
-      partition by cs.selected_by, cs.relationship_type
-      order by cs.created_at
-    ) as rn
-  from public.comparison_selections cs
-  where cs.purchase_id is null
-    and cs.report_id is not null
-    and cs.relationship_type in ('couples', 'cofounders')
-)
-update public.comparison_selections cs
-set purchase_id = pairing.purchase_id,
-    updated_at  = now()
-from (
-  select
-    ls.id          as selection_id,
-    op.id          as purchase_id
-  from legacy_selections ls
-  join orphan_purchases op
-    on op.user_id = ls.selected_by
-   and op.rn      = ls.rn
-   and (
-     (ls.relationship_type = 'couples'    and op.type = 'couples_comparison') or
-     (ls.relationship_type = 'cofounders' and op.type = 'cofounders_comparison')
-   )
-) as pairing
-where cs.id = pairing.selection_id;
+do $$
+declare
+  sel record;
+  match_id uuid;
+begin
+  for sel in
+    select
+      cs.id,
+      cs.relationship_type,
+      i.from_user_id,
+      i.to_user_id,
+      cs.created_at
+    from public.comparison_selections cs
+    join public.invites i on i.id = cs.invite_id
+    where cs.purchase_id is null
+      and cs.report_id is not null
+      and cs.relationship_type in ('couples', 'cofounders')
+    order by cs.created_at
+  loop
+    select p.id
+    into match_id
+    from public.purchases p
+    where p.status = 'completed'
+      and p.user_id in (sel.from_user_id, sel.to_user_id)
+      and (
+        (sel.relationship_type = 'couples'    and p.type = 'couples_comparison') or
+        (sel.relationship_type = 'cofounders' and p.type = 'cofounders_comparison')
+      )
+      and not exists (
+        select 1
+        from public.comparison_selections cs2
+        where cs2.purchase_id = p.id
+      )
+    order by
+      case when p.user_id = sel.from_user_id then 0 else 1 end,
+      p.created_at
+    limit 1;
+
+    if match_id is not null then
+      update public.comparison_selections
+      set purchase_id = match_id,
+          updated_at  = now()
+      where id = sel.id;
+    end if;
+  end loop;
+end
+$$;
