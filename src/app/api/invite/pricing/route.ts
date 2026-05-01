@@ -59,12 +59,22 @@ export async function GET(request: Request) {
   // selections — those are "consumed" and don't count as paid-for-this-pair.
   // Excluding the selection for the current (invite, type) lets a purchase
   // already attached to this exact row still register as paid for itself.
-  const userIds = [invite.from_user_id, invite.to_user_id].filter(Boolean) as string[];
-  const { data: consumedRows } = await admin
-    .from("comparison_selections")
-    .select("invite_id, relationship_type, purchase_id")
-    .in("selected_by", userIds)
-    .not("purchase_id", "is", null);
+  //
+  // Filter by purchase_id ∈ (this pair's purchases), NOT by selected_by:
+  // a selection's selected_by can be either participant of the OTHER pair
+  // the purchase is bound to (e.g. Sammy initiated Sammy↔Elliott Couples
+  // backed by Elliott's purchase). Filtering by selected_by would miss
+  // those rows and double-count the purchase as "available" for this pair.
+  const candidatePurchaseIds = [
+    ...((inviterPurchases ?? []).map((p) => p.id)),
+    ...((inviteePurchases ?? []).map((p) => p.id)),
+  ];
+  const { data: consumedRows } = candidatePurchaseIds.length
+    ? await admin
+        .from("comparison_selections")
+        .select("invite_id, relationship_type, purchase_id")
+        .in("purchase_id", candidatePurchaseIds)
+    : { data: [] };
   const consumedPurchaseIds = new Set<string>(
     (consumedRows ?? [])
       .filter(
