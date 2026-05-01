@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
@@ -73,6 +74,38 @@ export async function GET(request: NextRequest) {
       status: "accepted",
     })
     .eq("id", invite.id);
+
+  // Auto-fold the reciprocal: if this user had also sent a pending invite
+  // back to the inviter, accept it too. Sending an invite already counts
+  // as that side's opt-in. Mirrors /api/invite/claim — keeps both accept
+  // paths in sync. Uses admin because the user-scoped RLS update policy
+  // only covers invites where they are to_user_id, not from_user_id.
+  if (invite.from_user_id) {
+    const admin = createAdminClient();
+    const { data: inviterAuth } = await admin.auth.admin.getUserById(
+      invite.from_user_id,
+    );
+    const inviterEmail = inviterAuth.user?.email ?? null;
+
+    await admin
+      .from("invites")
+      .update({ to_user_id: invite.from_user_id, status: "accepted" })
+      .eq("from_user_id", user.id)
+      .eq("to_user_id", invite.from_user_id)
+      .eq("status", "pending");
+
+    if (inviterEmail) {
+      // Catch the unlinked case (reciprocal still has to_user_id null —
+      // happens when the inviter also signed up without clicking a link).
+      await admin
+        .from("invites")
+        .update({ to_user_id: invite.from_user_id, status: "accepted" })
+        .eq("from_user_id", user.id)
+        .is("to_user_id", null)
+        .ilike("to_email", inviterEmail)
+        .eq("status", "pending");
+    }
+  }
 
   return NextResponse.redirect(
     new URL("/dashboard?invite=accepted", request.url)

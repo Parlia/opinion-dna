@@ -93,5 +93,35 @@ export async function POST(request: Request) {
     );
   }
 
+  // Auto-fold the reciprocal: if this user had also sent a pending invite
+  // back to the inviter, mark it accepted too. Sending an invite already
+  // counts as that side's opt-in, so no point making both parties click
+  // Accept once they're both in the system. Idempotent under races — the
+  // status='pending' filter no-ops when the row was already flipped by a
+  // simultaneous accept on the other side.
+  if (invite.from_user_id) {
+    const { data: inviterAuth } = await admin.auth.admin.getUserById(
+      invite.from_user_id,
+    );
+    const inviterEmail = inviterAuth.user?.email ?? null;
+
+    await admin
+      .from("invites")
+      .update({ to_user_id: invite.from_user_id, status: "accepted" })
+      .eq("from_user_id", user.id)
+      .eq("to_user_id", invite.from_user_id)
+      .eq("status", "pending");
+
+    if (inviterEmail) {
+      await admin
+        .from("invites")
+        .update({ to_user_id: invite.from_user_id, status: "accepted" })
+        .eq("from_user_id", user.id)
+        .is("to_user_id", null)
+        .ilike("to_email", inviterEmail)
+        .eq("status", "pending");
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }
