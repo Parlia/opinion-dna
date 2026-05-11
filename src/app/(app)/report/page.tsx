@@ -110,6 +110,36 @@ function scoreColor(dimension: string, score: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+// Map section heading substrings to short nav labels.
+// Order matters — more specific matches must come first.
+const SECTION_SHORT_LABELS: readonly [string, string][] = [
+  ["how to read", "How to Read"],
+  ["at a glance", "Snapshot"],
+  ["part 1", "Snapshot"],
+  ["life & happiness", "Life"],
+  ["life and happiness", "Life"],
+  ["part 2", "Life"],
+  ["relationships", "Relationships"],
+  ["part 3", "Relationships"],
+  ["career", "Career"],
+  ["part 4", "Career"],
+  ["cognitive signature", "Cognition"],
+  ["part 5", "Cognition"],
+  ["48 elements", "Elements"],
+  ["part 6", "Elements"],
+  ["what now", "What Now?"],
+];
+
+function getShortLabel(title: string): string {
+  const lower = title.toLowerCase();
+  for (const [substring, label] of SECTION_SHORT_LABELS) {
+    if (lower.includes(substring)) return label;
+  }
+  // Fallback: strip a leading "Part N:" prefix if present, else first segment
+  if (title.includes(":")) return title.split(":")[1]?.trim() || title.split(":")[0].trim();
+  return title;
+}
+
 // Parse markdown content into sections
 function parseSections(content: string) {
   const sections: { title: string; body: string; id: string }[] = [];
@@ -1226,8 +1256,7 @@ export default function ReportPage() {
     return sections
       .filter((s) => s.title)
       .map((s, i) => {
-        let short = s.title;
-        if (short.includes(":")) short = short.split(":")[0].trim();
+        let short = getShortLabel(s.title);
         if (short.length > 20) short = short.substring(0, 20) + "…";
         return { label: short, idx: i, id: s.id };
       });
