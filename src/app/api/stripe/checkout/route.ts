@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { findProduct } from "@/lib/stripe/products";
 
@@ -38,7 +39,11 @@ export async function GET(request: NextRequest) {
     });
     customerId = customer.id;
 
-    await supabase
+    // Write stripe_customer_id with the admin client: migration 019 revokes
+    // blanket UPDATE on profiles from `authenticated` and only re-grants
+    // (full_name, preferred_name), so this privileged column must be written
+    // server-side via the service role.
+    await createAdminClient()
       .from("profiles")
       .update({ stripe_customer_id: customerId })
       .eq("id", user.id);

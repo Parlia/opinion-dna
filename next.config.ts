@@ -19,11 +19,10 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              // auth.opiniondna.com routes to Supabase via custom domain; *.supabase.co kept
-              // during cutover as a safety net and can be removed once we're confident no
-              // code paths still call the canonical URL (see opinion-dna.md memory: 2026-05-11
-              // custom domain cutover). The wildcard does NOT match auth.opiniondna.com.
-              "connect-src 'self' https://auth.opiniondna.com https://*.supabase.co https://api.stripe.com https://checkout.stripe.com https://va.vercel-scripts.com",
+              // Supabase is reached exclusively via the auth.opiniondna.com custom domain.
+              // The legacy https://*.supabase.co wildcard was removed after the 2026-05-11
+              // cutover proved stable (no code paths call the canonical *.supabase.co URL).
+              "connect-src 'self' https://auth.opiniondna.com https://api.stripe.com https://checkout.stripe.com https://va.vercel-scripts.com",
               "frame-src https://js.stripe.com",
               "object-src 'none'",
               "base-uri 'self'",

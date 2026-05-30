@@ -1,18 +1,25 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-const OLD_HOSTS = ["opinion-dna.com", "www.opinion-dna.com"];
+const CANONICAL_HOST = "www.opiniondna.com";
+// Hosts that must permanently redirect to the canonical www host:
+// the retired hyphenated domain and the non-www apex of the live domain.
+const REDIRECT_HOSTS = ["opinion-dna.com", "www.opinion-dna.com", "opiniondna.com"];
 
 export async function middleware(request: NextRequest) {
-  // 301 redirect old domain → canonical www domain (preserves path + query string).
-  // Redirect directly to www to avoid a double hop (old → non-www → www).
+  // Permanent (308) redirect to the canonical www host (preserves path + query string).
+  // www is the canonical origin used in metadata, sitemap, and OG tags, so search
+  // engines should consolidate all signal there. 308 (not 307) tells crawlers the move
+  // is permanent. Redirect straight to www to avoid a double hop (old → apex → www).
+  // NOTE: if Vercel is configured to redirect the apex at the edge it returns 307 before
+  // this runs — assign opiniondna.com to the project (not "redirect") so this 308 wins.
   const host = request.headers.get("host")?.replace(/:\d+$/, "") ?? "";
-  if (OLD_HOSTS.includes(host)) {
+  if (REDIRECT_HOSTS.includes(host)) {
     const url = request.nextUrl.clone();
-    url.host = "www.opiniondna.com";
+    url.host = CANONICAL_HOST;
     url.port = "";
     url.protocol = "https";
-    return NextResponse.redirect(url, 301);
+    return NextResponse.redirect(url, 308);
   }
 
   // Catch Supabase OAuth code that lands on wrong path — redirect to /callback

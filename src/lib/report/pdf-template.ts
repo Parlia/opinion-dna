@@ -10,6 +10,21 @@ import { Marked, type Tokens } from "marked";
 import { ELEMENTS, PARLIA_AVERAGES } from "@/lib/scoring/elements";
 import { getScoreLevel } from "@/lib/scoring/engine";
 
+// Escape HTML in text that we interpolate directly into the template string.
+// The custom marked renderers below read token.text / cell.text verbatim, which
+// bypasses marked's built-in escaping. The on-screen viewer path runs through
+// rehype-sanitize; the PDF path doesn't, so any user-controlled text that reaches
+// this template (e.g. a name echoed into report content) must be escaped here to
+// stop an HTML/script payload executing inside Puppeteer. Mirrors escapeHtml in
+// src/lib/email/resend.ts.
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 // ── Section styling (mirrors report/page.tsx) ──
 
 const SECTION_STYLES: Record<string, { accent: string; bg: string; icon: string }> = {
@@ -130,20 +145,21 @@ function renderMarkdown(md: string): string {
     renderer: {
       strong(token: Tokens.Strong) {
         const levelColor = LEVEL_COLORS[token.text];
+        const text = escapeHtml(token.text);
         if (levelColor) {
-          return `<strong style="color: ${levelColor}; font-weight: 700;">${token.text}</strong>`;
+          return `<strong style="color: ${levelColor}; font-weight: 700;">${text}</strong>`;
         }
-        return `<strong style="font-weight: 700; color: #111;">${token.text}</strong>`;
+        return `<strong style="font-weight: 700; color: #111;">${text}</strong>`;
       },
 
       em(token: Tokens.Em) {
-        return `<em style="color: #666; font-style: normal;">${token.text}</em>`;
+        return `<em style="color: #666; font-style: normal;">${escapeHtml(token.text)}</em>`;
       },
 
       table(token: Tokens.Table) {
         let headerHtml = "<tr>";
         for (const cell of token.header) {
-          headerHtml += `<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;">${cell.text}</th>`;
+          headerHtml += `<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;">${escapeHtml(cell.text)}</th>`;
         }
         headerHtml += "</tr>";
 
@@ -153,7 +169,7 @@ function renderMarkdown(md: string): string {
           for (const cell of row) {
             const levelColor = LEVEL_COLORS[cell.text];
             const style = `padding:8px 12px;border-bottom:1px solid #D5D0C6;${levelColor ? `color:${levelColor};font-weight:700;` : ""}`;
-            bodyHtml += `<td style="${style}">${cell.text}</td>`;
+            bodyHtml += `<td style="${style}">${escapeHtml(cell.text)}</td>`;
           }
           bodyHtml += "</tr>";
         }
