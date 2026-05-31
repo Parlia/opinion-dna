@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isAdminEmail } from "@/lib/auth/admin";
+import { isAdminEmail, isExampleReportsEmail } from "@/lib/auth/admin";
+import { DeleteUserButton } from "./DeleteUserButton";
 
 export const dynamic = "force-dynamic";
 
@@ -439,6 +440,7 @@ export default async function AdminDashboardPage() {
                     <th className="px-4 py-2 text-right font-medium">Invites</th>
                     <th className="px-4 py-2 text-right font-medium">Compare</th>
                     <th className="px-4 py-2 text-left font-medium">Last active</th>
+                    <th className="px-4 py-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
@@ -488,6 +490,19 @@ export default async function AdminDashboardPage() {
                       </td>
                       <td className="px-4 py-3 text-xs text-[var(--muted)] whitespace-nowrap">
                         {new Date(u.lastActivityAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {u.userId === user?.id ||
+                        isAdminEmail(u.email) ||
+                        isExampleReportsEmail(u.email) ? (
+                          <span className="text-xs text-[#ccc]">—</span>
+                        ) : (
+                          <DeleteUserButton
+                            userId={u.userId}
+                            email={u.email}
+                            paid={u.personalPaid}
+                          />
+                        )}
                       </td>
                     </tr>
                   ))}
