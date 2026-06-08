@@ -2,271 +2,28 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isAdminEmail, isExampleReportsEmail } from "@/lib/auth/admin";
-import { DeleteUserButton } from "./DeleteUserButton";
+import { isAdminEmail } from "@/lib/auth/admin";
+import {
+  fetchAdminRaw,
+  buildMetrics,
+  buildUserRows,
+  buildRecentRealSales,
+} from "@/lib/admin/metrics";
+import { UsersTable } from "./UsersTable";
+import { FunnelStrip } from "./FunnelStrip";
 
 export const dynamic = "force-dynamic";
 
-interface UserRow {
-  userId: string;
-  email: string;
-  fullName: string | null;
-  createdAt: string;
-  quizCompleted: boolean;
-  quizCompletedAt: string | null;
-  personalPaid: boolean;
-  personalPaidAmount: number;
-  personalReportStatus: "none" | "generating" | "completed" | "failed";
-  invitesSent: number;
-  invitesAccepted: number;
-  comparisonsCompleted: number;
-  comparisonsPaid: number;
-  lastActivityAt: string;
+function usdFmt(n: number): string {
+  return `$${Math.round(n).toLocaleString()}`;
 }
 
-interface DashboardData {
-  rows: UserRow[];
-  totals: {
-    users: number;
-    quizCompleted: number;
-    personalPaid: number;
-    personalReportCompleted: number;
-    invitesSent: number;
-    invitesAccepted: number;
-    comparisonsCompleted: number;
-    friendsCompleted: number;
-    couplesCompleted: number;
-    cofoundersCompleted: number;
-  };
-  revenue: {
-    totalCents: number;
-    personalCents: number;
-    couplesCents: number;
-    cofoundersCents: number;
-    otherComparisonCents: number;
-    last7DaysCents: number;
-  };
-  recentPurchases: {
-    createdAt: string;
-    email: string;
-    type: string;
-    amountCents: number;
-    status: string;
-  }[];
-}
-
-async function fetchDashboard(): Promise<DashboardData> {
-  const admin = createAdminClient();
-
-  const [
-    usersResult,
-    profilesResult,
-    scoresResult,
-    purchasesResult,
-    reportsResult,
-    invitesResult,
-    selectionsResult,
-  ] = await Promise.all([
-    admin.auth.admin.listUsers({ perPage: 1000 }),
-    admin.from("profiles").select("id, full_name"),
-    admin.from("user_scores").select("user_id, created_at"),
-    admin
-      .from("purchases")
-      .select("id, user_id, type, status, amount_cents, created_at, stripe_session_id")
-      .order("created_at", { ascending: false }),
-    admin.from("reports").select("user_id, type, status, updated_at"),
-    admin
-      .from("invites")
-      .select("id, from_user_id, to_user_id, status, updated_at"),
-    admin
-      .from("comparison_selections")
-      .select("selected_by, confirmed_by, report_id, purchase_id, relationship_type, updated_at"),
-  ]);
-
-  const authUsers = usersResult.data?.users ?? [];
-  const profiles = profilesResult.data ?? [];
-  const scores = scoresResult.data ?? [];
-  const purchases = purchasesResult.data ?? [];
-  const reports = reportsResult.data ?? [];
-  const invites = invitesResult.data ?? [];
-  const selections = selectionsResult.data ?? [];
-
-  const profileByUser = new Map(
-    profiles.map((p) => [
-      (p as { id: string; full_name: string | null }).id,
-      (p as { id: string; full_name: string | null }).full_name,
-    ])
-  );
-
-  const scoreByUser = new Map(
-    scores.map((s) => [
-      (s as { user_id: string; created_at: string }).user_id,
-      (s as { user_id: string; created_at: string }).created_at,
-    ])
-  );
-
-  const emailById = new Map<string, string>();
-  for (const u of authUsers) emailById.set(u.id, u.email ?? "(no email)");
-
-  const rows: UserRow[] = authUsers.map((u) => {
-    const myPurchases = purchases.filter(
-      (p) => (p as { user_id: string }).user_id === u.id
-    );
-    const personalCompleted = myPurchases.find(
-      (p) =>
-        (p as { type: string; status: string }).type === "personal" &&
-        (p as { type: string; status: string }).status === "completed"
-    );
-    const myReports = reports.filter(
-      (r) => (r as { user_id: string }).user_id === u.id
-    );
-    const personalReport = myReports.find(
-      (r) => (r as { type: string }).type === "personal"
-    );
-    const myInvites = invites.filter(
-      (i) => (i as { from_user_id: string }).from_user_id === u.id
-    );
-    const mySelections = selections.filter(
-      (s) =>
-        (s as { selected_by: string; confirmed_by: string | null })
-          .selected_by === u.id ||
-        (s as { selected_by: string; confirmed_by: string | null })
-          .confirmed_by === u.id
-    );
-
-    const activityCandidates = [
-      u.created_at,
-      scoreByUser.get(u.id),
-      ...myPurchases.map((p) => (p as { created_at: string }).created_at),
-      ...myReports.map((r) => (r as { updated_at: string }).updated_at),
-      ...myInvites.map((i) => (i as { updated_at: string }).updated_at),
-      ...mySelections.map((s) => (s as { updated_at: string }).updated_at),
-    ].filter(Boolean) as string[];
-
-    const lastActivityAt =
-      activityCandidates.sort((a, b) => (a > b ? -1 : 1))[0] ?? u.created_at;
-
-    return {
-      userId: u.id,
-      email: u.email ?? "(no email)",
-      fullName: profileByUser.get(u.id) ?? null,
-      createdAt: u.created_at,
-      quizCompleted: scoreByUser.has(u.id),
-      quizCompletedAt: scoreByUser.get(u.id) ?? null,
-      personalPaid: !!personalCompleted,
-      personalPaidAmount: personalCompleted
-        ? (personalCompleted as { amount_cents: number }).amount_cents
-        : 0,
-      personalReportStatus: (personalReport
-        ? (personalReport as { status: string }).status
-        : "none") as UserRow["personalReportStatus"],
-      invitesSent: myInvites.length,
-      invitesAccepted: myInvites.filter(
-        (i) => (i as { status: string }).status === "accepted"
-      ).length,
-      comparisonsCompleted: mySelections.filter(
-        (s) => !!(s as { report_id: string | null }).report_id
-      ).length,
-      comparisonsPaid: mySelections.filter(
-        (s) => !!(s as { purchase_id: string | null }).purchase_id
-      ).length,
-      lastActivityAt,
-    };
-  });
-
-  rows.sort((a, b) => (a.lastActivityAt > b.lastActivityAt ? -1 : 1));
-
-  const completedSelections = selections.filter(
-    (s) => !!(s as { report_id: string | null }).report_id
-  );
-  const countByType = (type: string) =>
-    completedSelections.filter(
-      (s) => (s as { relationship_type: string }).relationship_type === type
-    ).length;
-
-  const totals = {
-    users: rows.length,
-    quizCompleted: rows.filter((r) => r.quizCompleted).length,
-    personalPaid: rows.filter((r) => r.personalPaid).length,
-    personalReportCompleted: rows.filter(
-      (r) => r.personalReportStatus === "completed"
-    ).length,
-    invitesSent: rows.reduce((s, r) => s + r.invitesSent, 0),
-    invitesAccepted: rows.reduce((s, r) => s + r.invitesAccepted, 0),
-    comparisonsCompleted: rows.reduce((s, r) => s + r.comparisonsCompleted, 0),
-    friendsCompleted: countByType("friends"),
-    couplesCompleted: countByType("couples"),
-    cofoundersCompleted: countByType("cofounders"),
-  };
-
-  const completedPurchases = purchases.filter(
-    (p) => (p as { status: string }).status === "completed"
-  );
-  const sumByType = (type: string) =>
-    completedPurchases
-      .filter((p) => (p as { type: string }).type === type)
-      .reduce((s, p) => s + (p as { amount_cents: number }).amount_cents, 0);
-
-  const personalCents = sumByType("personal");
-  const couplesCents = sumByType("couples_comparison");
-  const cofoundersCents = sumByType("cofounders_comparison");
-  // Pricing was simplified to only _comparison SKUs; the _upgrade enum values
-  // from migration 009 are unused but still legal in the DB. If any ever get
-  // written we'll see them pile up here.
-  const KNOWN_TYPES = new Set([
-    "personal",
-    "couples_comparison",
-    "cofounders_comparison",
-    "friends_comparison",
-  ]);
-  const otherComparisonCents = completedPurchases
-    .filter((p) => !KNOWN_TYPES.has((p as { type: string }).type))
-    .reduce((s, p) => s + (p as { amount_cents: number }).amount_cents, 0);
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const last7DaysCents = completedPurchases
-    .filter((p) => (p as { created_at: string }).created_at > sevenDaysAgo)
-    .reduce((s, p) => s + (p as { amount_cents: number }).amount_cents, 0);
-
-  const revenue = {
-    totalCents: personalCents + couplesCents + cofoundersCents + otherComparisonCents,
-    personalCents,
-    couplesCents,
-    cofoundersCents,
-    otherComparisonCents,
-    last7DaysCents,
-  };
-
-  const recentPurchases = completedPurchases.slice(0, 10).map((p) => {
-    const row = p as {
-      user_id: string;
-      type: string;
-      amount_cents: number;
-      created_at: string;
-      status: string;
-    };
-    return {
-      createdAt: row.created_at,
-      email: emailById.get(row.user_id) ?? "(unknown)",
-      type: row.type,
-      amountCents: row.amount_cents,
-      status: row.status,
-    };
-  });
-
-  return { rows, totals, revenue, recentPurchases };
-}
-
-function dollars(cents: number): string {
-  return `$${(cents / 100).toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  })}`;
-}
-
-function pct(num: number, denom: number): string {
-  if (!denom) return "—";
-  return `${Math.round((num / denom) * 100)}%`;
-}
+const PRODUCT_LABEL: Record<string, string> = {
+  personal: "Personal",
+  couples_comparison: "Couples",
+  cofounders_comparison: "Co-Founders",
+  friends_comparison: "Friends",
+};
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
@@ -278,131 +35,289 @@ export default async function AdminDashboardPage() {
     notFound();
   }
 
-  const data = await fetchDashboard();
+  const admin = createAdminClient();
+  const raw = await fetchAdminRaw(admin);
+  const now = new Date();
+  const m = buildMetrics(raw, now);
+  const rows = buildUserRows(raw);
+  const recent = buildRecentRealSales(raw);
+
+  const progress = Math.min(100, Math.max(0, m.sales.mtd_progress_pct));
+
+  // Embedded machine-readable snapshot — same object as GET /api/admin/metrics.
+  // Rendered as the text child of an inert <script type="application/json">.
+  // We escape < > & to their \uXXXX JSON escapes (which JSON.parse decodes back)
+  // so the payload cannot terminate the tag or be mangled by HTML entity rules.
+  const metricsJson = JSON.stringify(m).replace(
+    /[<>&]/g,
+    (c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0")
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
+      <script id="odna-metrics" type="application/json">
+        {metricsJson}
+      </script>
+
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--foreground)]">Admin</h1>
+          <h1 className="text-2xl font-semibold text-[var(--foreground)]">Scorecard</h1>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Funnel, revenue, and per-user activity.
+            Month-to-date sales velocity toward £10,000/mo. Real sales only ·{" "}
+            <span title="Source of internal/test exclusion flag">
+              flag via {m.data_quality.internal_flag_source === "db" ? "DB" : "heuristic"}
+            </span>{" "}
+            · as of {new Date(m.as_of).toLocaleString()} UTC
           </p>
         </div>
-        <Link
-          href="/admin/invites"
-          className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
-        >
-          Invites detail &rarr;
-        </Link>
+        <div className="flex items-center gap-4">
+          <a
+            href="/api/admin/metrics"
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
+          >
+            JSON &rarr;
+          </a>
+          <Link
+            href="/admin/invites"
+            className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
+          >
+            Invites detail &rarr;
+          </Link>
+        </div>
       </div>
 
-      {/* Conversion funnel */}
-      <section className="mb-8">
-        <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">
-          Funnel
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          <FunnelCard label="Signups" value={data.totals.users} />
-          <FunnelCard
-            label="Completed quiz"
-            value={data.totals.quizCompleted}
-            sub={pct(data.totals.quizCompleted, data.totals.users)}
+      {m.data_quality.internal_flag_source === "heuristic" && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <strong>Heuristic mode:</strong> the <code>profiles.is_internal</code> column isn&apos;t
+          present yet. Apply migration <code>020_admin_internal_flag.sql</code> to make the
+          internal/test flag editable and authoritative. Numbers below use an email-based fallback.
+        </div>
+      )}
+
+      {/* Headline KPIs — month-to-date */}
+      <section className="mb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* MTD revenue with goal progress */}
+          <div className="bg-white rounded-xl border border-[var(--border)] px-4 py-3 md:col-span-2">
+            <p className="text-xs text-[var(--muted)] uppercase tracking-wide">
+              MTD revenue (real, net)
+            </p>
+            <p className="mt-1 text-3xl font-semibold text-[var(--foreground)] tabular-nums">
+              {usdFmt(m.sales.mtd_net_revenue_usd)}
+              <span className="text-base font-normal text-[var(--muted)]">
+                {" "}
+                / {usdFmt(m.goal.monthly_revenue_target_usd)}
+              </span>
+            </p>
+            <div className="mt-2 h-2 w-full rounded-full bg-[var(--beige-light)] overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[var(--primary)]"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-[var(--muted)] tabular-nums">
+              {m.sales.mtd_progress_pct}% to £{m.goal.monthly_revenue_target_gbp.toLocaleString()} goal
+              {m.sales.refunds_mtd_count > 0 &&
+                ` · ${usdFmt(m.sales.refunds_mtd_usd)} refunded (${m.sales.refunds_mtd_count})`}
+            </p>
+          </div>
+
+          <KpiCard
+            label="MTD sales"
+            value={`${m.sales.mtd_count}`}
+            sub={`/ ${m.goal.monthly_sales_target} · ${m.sales.mtd_run_rate_per_day}/day (target ${m.goal.daily_sales_target}/day)`}
           />
-          <FunnelCard
-            label="Paid personal"
-            value={data.totals.personalPaid}
-            sub={pct(data.totals.personalPaid, data.totals.quizCompleted)}
-          />
-          <FunnelCard
-            label="Report ready"
-            value={data.totals.personalReportCompleted}
-            sub={pct(
-              data.totals.personalReportCompleted,
-              data.totals.personalPaid
-            )}
-          />
-          <FunnelCard label="Invites sent" value={data.totals.invitesSent} />
-          <FunnelCard
-            label="Invites accepted"
-            value={data.totals.invitesAccepted}
-            sub={pct(data.totals.invitesAccepted, data.totals.invitesSent)}
-          />
-          <FunnelCard
-            label="Comparisons"
-            value={data.totals.comparisonsCompleted}
+          <KpiCard
+            label="Today"
+            value={`${m.sales.today_count}`}
+            sub={`${usdFmt(m.sales.today_revenue_usd)} today${
+              m.sales.days_since_last_real_sale !== null
+                ? ` · last sale ${m.sales.days_since_last_real_sale}d ago`
+                : " · no sales yet"
+            }`}
           />
         </div>
       </section>
 
-      {/* Comparisons by type */}
+      {/* Momentum + projection */}
       <section className="mb-8">
-        <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">
-          Comparisons by type
-        </h2>
-        <div className="grid grid-cols-3 gap-3">
-          <FunnelCard label="Friends (free)" value={data.totals.friendsCompleted} />
-          <FunnelCard label="Couples" value={data.totals.couplesCompleted} />
-          <FunnelCard label="Co-Founders" value={data.totals.cofoundersCompleted} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <MiniStat label="Projected month-end" value={usdFmt(m.sales.projected_month_end_usd)} />
+          <MiniStat
+            label="Last 7 days"
+            value={`${m.sales.last_7d_count} · ${usdFmt(m.sales.last_7d_revenue_usd)}`}
+          />
+          <MiniStat
+            label="Last 30 days"
+            value={`${m.sales.last_30d_count} · ${usdFmt(m.sales.last_30d_revenue_usd)}`}
+          />
+          <MiniStat
+            label="All time"
+            value={`${m.sales.all_time_count} · ${usdFmt(m.sales.all_time_revenue_usd)}`}
+          />
         </div>
       </section>
 
-      {/* Revenue */}
+      {/* Funnel (windowed) */}
+      <FunnelStrip funnel={m.funnel} />
+
+      {/* Channels */}
       <section className="mb-8">
         <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">
-          Revenue
+          Channels {m.channels.tracked ? "" : "· not tracked yet"}
+        </h2>
+        <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-[var(--beige-light)]">
+              <tr className="text-xs uppercase tracking-wide text-[var(--muted)]">
+                <th className="px-4 py-2 text-left font-medium">Source (MTD)</th>
+                <th className="px-4 py-2 text-right font-medium">Signups</th>
+                <th className="px-4 py-2 text-right font-medium">Sales</th>
+                <th className="px-4 py-2 text-right font-medium">Revenue</th>
+                <th className="px-4 py-2 text-right font-medium">Signup→Paid</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)]">
+              {m.channels.rows.map((c) => (
+                <tr key={c.source}>
+                  <td className="px-4 py-2 text-[var(--foreground)]">{c.source}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{c.signups}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{c.sales}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{usdFmt(c.revenue_usd)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-[var(--muted)]">
+                    {c.signup_to_paid_rate === null
+                      ? "—"
+                      : `${Math.round(c.signup_to_paid_rate * 100)}%`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!m.channels.tracked && (
+          <p className="mt-2 text-xs text-[var(--muted)]">{m.channels.note}</p>
+        )}
+      </section>
+
+      {/* Product mix & AOV */}
+      <section className="mb-8">
+        <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">
+          Product mix &amp; AOV
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <RevenueCard label="Total" value={dollars(data.revenue.totalCents)} />
-          <RevenueCard
+          <ProductCard
             label="Personal"
-            value={dollars(data.revenue.personalCents)}
+            price={m.products.personal.price_usd}
+            salesMtd={m.products.personal.sales_mtd}
+            revenueMtd={m.products.personal.revenue_mtd_usd}
+            allTime={m.products.personal.sales_all_time}
           />
-          <RevenueCard
+          <ProductCard
             label="Couples"
-            value={dollars(data.revenue.couplesCents)}
+            price={m.products.couples.price_usd}
+            salesMtd={m.products.couples.sales_mtd}
+            revenueMtd={m.products.couples.revenue_mtd_usd}
+            allTime={m.products.couples.sales_all_time}
           />
-          <RevenueCard
+          <ProductCard
             label="Co-Founders"
-            value={dollars(data.revenue.cofoundersCents)}
+            price={m.products.cofounders.price_usd}
+            salesMtd={m.products.cofounders.sales_mtd}
+            revenueMtd={m.products.cofounders.revenue_mtd_usd}
+            allTime={m.products.cofounders.sales_all_time}
           />
-          <RevenueCard
-            label="Last 7 days"
-            value={dollars(data.revenue.last7DaysCents)}
+          <div className="bg-white rounded-xl border border-[var(--border)] px-4 py-3">
+            <p className="text-xs text-[var(--muted)] uppercase tracking-wide">Attach rate</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--foreground)] tabular-nums">
+              {m.attach.attach_rate === null
+                ? "—"
+                : `${Math.round(m.attach.attach_rate * 100)}%`}
+            </p>
+            <p className="text-xs text-[var(--muted)]">
+              {m.attach.buyers_with_paid_comparison}/{m.attach.personal_buyers_mtd} MTD buyers added a
+              paid comparison
+            </p>
+          </div>
+          <div className="bg-white rounded-xl border border-[var(--border)] px-4 py-3">
+            <p className="text-xs text-[var(--muted)] uppercase tracking-wide">Refunds (MTD)</p>
+            <p className="mt-1 text-2xl font-semibold text-[var(--foreground)] tabular-nums">
+              {m.sales.refunds_mtd_count}
+            </p>
+            <p className="text-xs text-[var(--muted)]">{usdFmt(m.sales.refunds_mtd_usd)} refunded</p>
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          Comparisons delivered (incl. free Friends) — MTD: {m.comparisons.total_mtd} (Friends{" "}
+          {m.comparisons.friends_mtd} · Couples {m.comparisons.couples_mtd} · Co-Founders{" "}
+          {m.comparisons.cofounders_mtd}) · all-time {m.comparisons.total_all_time}.
+        </p>
+      </section>
+
+      {/* Referral loop */}
+      <section className="mb-8">
+        <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">
+          Referral loop
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <LoopStep
+            label="Invites sent"
+            value={m.referral_loop.invites_sent_all_time}
+            sub={`${m.referral_loop.invites_sent_mtd} MTD`}
+          />
+          <LoopStep
+            label="Accepted"
+            value={m.referral_loop.invites_accepted_all_time}
+            sub={
+              m.referral_loop.invite_accept_rate === null
+                ? `${m.referral_loop.invites_accepted_mtd} MTD`
+                : `${Math.round(m.referral_loop.invite_accept_rate * 100)}% accept · ${
+                    m.referral_loop.invites_accepted_mtd
+                  } MTD`
+            }
+          />
+          <LoopStep label="Invited signups" value={m.referral_loop.invited_signups} />
+          <LoopStep
+            label="Invited paid"
+            value={m.referral_loop.invited_paid}
+            sub="became real buyers"
           />
         </div>
       </section>
 
-      {/* Recent purchases */}
-      {data.recentPurchases.length > 0 && (
+      {/* Recent real purchases */}
+      {recent.length > 0 && (
         <section className="mb-8">
           <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">
-            Recent purchases
+            Recent real purchases
           </h2>
           <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
             <div className="relative">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[600px]">
+                <table className="w-full text-sm min-w-[640px]">
                   <thead className="bg-[var(--beige-light)]">
                     <tr className="text-xs uppercase tracking-wide text-[var(--muted)]">
                       <th className="px-4 py-2 text-left font-medium">When</th>
                       <th className="px-4 py-2 text-left font-medium">User</th>
                       <th className="px-4 py-2 text-left font-medium">Product</th>
+                      <th className="px-4 py-2 text-left font-medium">Channel</th>
                       <th className="px-4 py-2 text-right font-medium">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {data.recentPurchases.map((p, i) => (
+                    {recent.map((p, i) => (
                       <tr key={i}>
                         <td className="px-4 py-2 text-xs text-[var(--muted)] whitespace-nowrap">
                           {new Date(p.createdAt).toLocaleString()}
                         </td>
                         <td className="px-4 py-2">{p.email}</td>
                         <td className="px-4 py-2 text-xs text-[var(--muted)]">
-                          {p.type}
+                          {PRODUCT_LABEL[p.type] ?? p.type}
                         </td>
+                        <td className="px-4 py-2 text-xs text-[var(--muted)]">{p.channel}</td>
                         <td className="px-4 py-2 text-right font-mono tabular-nums">
-                          {dollars(p.amountCents)}
+                          {usdFmt(p.amountCents / 100)}
                         </td>
                       </tr>
                     ))}
@@ -418,174 +333,65 @@ export default async function AdminDashboardPage() {
         </section>
       )}
 
-      {/* All users */}
-      <section>
-        <div className="flex items-end justify-between mb-3">
-          <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide">
-            All users ({data.rows.length})
-          </h2>
-          <p className="text-xs text-[var(--muted)]">Sorted by last activity</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
-          <div className="relative">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[900px]">
-                <thead className="bg-[var(--beige-light)]">
-                  <tr className="text-xs uppercase tracking-wide text-[var(--muted)]">
-                    <th className="px-4 py-2 text-left font-medium">User</th>
-                    <th className="px-4 py-2 text-left font-medium">Joined</th>
-                    <th className="px-4 py-2 text-center font-medium">Quiz</th>
-                    <th className="px-4 py-2 text-center font-medium">Paid</th>
-                    <th className="px-4 py-2 text-center font-medium">Report</th>
-                    <th className="px-4 py-2 text-right font-medium">Invites</th>
-                    <th className="px-4 py-2 text-right font-medium">Compare</th>
-                    <th className="px-4 py-2 text-left font-medium">Last active</th>
-                    <th className="px-4 py-2 text-right font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {data.rows.map((u) => (
-                    <tr key={u.userId} className="hover:bg-[#FAFAF8]">
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-[var(--foreground)]">
-                          {u.fullName || "(no name)"}
-                        </div>
-                        <div className="text-xs text-[var(--muted)]">
-                          {u.email}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-[var(--muted)] whitespace-nowrap">
-                        {new Date(u.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <Dot on={u.quizCompleted} />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {u.personalPaid ? (
-                          <span className="text-xs font-medium text-emerald-700">
-                            {dollars(u.personalPaidAmount)}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-[#ccc]">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <ReportPill status={u.personalReportStatus} />
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums">
-                        {u.invitesSent === 0 ? (
-                          <span className="text-[#ccc]">—</span>
-                        ) : (
-                          <>
-                            {u.invitesAccepted}/{u.invitesSent}
-                          </>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums">
-                        {u.comparisonsCompleted === 0 ? (
-                          <span className="text-[#ccc]">—</span>
-                        ) : (
-                          u.comparisonsCompleted
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-[var(--muted)] whitespace-nowrap">
-                        {new Date(u.lastActivityAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {u.userId === user?.id ||
-                        isAdminEmail(u.email) ||
-                        isExampleReportsEmail(u.email) ? (
-                          <span className="text-xs text-[#ccc]">—</span>
-                        ) : (
-                          <DeleteUserButton
-                            userId={u.userId}
-                            email={u.email}
-                            paid={u.personalPaid}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent md:hidden"
-            />
-          </div>
-        </div>
-        <p className="mt-3 text-xs text-[var(--muted)]">
-          Quiz = completed the 179-question assessment. Paid = Stripe purchase for the personal report. Report = personal report generation status.
-        </p>
-      </section>
+      {/* All users (interactive: show/hide internal, per-row flag, delete) */}
+      <UsersTable rows={rows} currentUserId={user!.id} />
     </div>
   );
 }
 
-function FunnelCard({
+function KpiCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="bg-white rounded-xl border border-[var(--border)] px-4 py-3">
+      <p className="text-xs text-[var(--muted)] uppercase tracking-wide">{label}</p>
+      <p className="mt-1 text-3xl font-semibold text-[var(--foreground)] tabular-nums">{value}</p>
+      {sub && <p className="mt-1 text-xs text-[var(--muted)] tabular-nums">{sub}</p>}
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-white rounded-xl border border-[var(--border)] px-4 py-3">
+      <p className="text-xs text-[var(--muted)] uppercase tracking-wide">{label}</p>
+      <p className="mt-1 text-lg font-medium text-[var(--foreground)] tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function ProductCard({
   label,
-  value,
-  sub,
+  price,
+  salesMtd,
+  revenueMtd,
+  allTime,
 }: {
   label: string;
-  value: number;
-  sub?: string;
+  price: number;
+  salesMtd: number;
+  revenueMtd: number;
+  allTime: number;
 }) {
   return (
     <div className="bg-white rounded-xl border border-[var(--border)] px-4 py-3">
       <p className="text-xs text-[var(--muted)] uppercase tracking-wide">
-        {label}
+        {label} <span className="normal-case">(${price})</span>
       </p>
       <p className="mt-1 text-2xl font-semibold text-[var(--foreground)] tabular-nums">
-        {value}
+        {usdFmt(revenueMtd)}
       </p>
-      {sub && (
-        <p className="text-xs text-[var(--muted)] tabular-nums">{sub}</p>
-      )}
+      <p className="text-xs text-[var(--muted)] tabular-nums">
+        {salesMtd} MTD · {allTime} all-time
+      </p>
     </div>
   );
 }
 
-function RevenueCard({ label, value }: { label: string; value: string }) {
+function LoopStep({ label, value, sub }: { label: string; value: number; sub?: string }) {
   return (
     <div className="bg-white rounded-xl border border-[var(--border)] px-4 py-3">
-      <p className="text-xs text-[var(--muted)] uppercase tracking-wide">
-        {label}
-      </p>
-      <p className="mt-1 text-2xl font-semibold text-[var(--foreground)] tabular-nums">
-        {value}
-      </p>
+      <p className="text-xs text-[var(--muted)] uppercase tracking-wide">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-[var(--foreground)] tabular-nums">{value}</p>
+      {sub && <p className="text-xs text-[var(--muted)]">{sub}</p>}
     </div>
-  );
-}
-
-function Dot({ on }: { on: boolean }) {
-  return (
-    <span
-      aria-label={on ? "yes" : "no"}
-      className={`inline-block w-2.5 h-2.5 rounded-full ${
-        on ? "bg-emerald-500" : "bg-[#e5e5e5]"
-      }`}
-    />
-  );
-}
-
-function ReportPill({ status }: { status: UserRow["personalReportStatus"] }) {
-  if (status === "none") {
-    return <span className="text-xs text-[#ccc]">—</span>;
-  }
-  const tone =
-    status === "completed"
-      ? "bg-emerald-50 text-emerald-700"
-      : status === "generating"
-        ? "bg-amber-50 text-amber-700"
-        : "bg-red-50 text-red-700";
-  return (
-    <span
-      className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${tone} uppercase tracking-wide`}
-    >
-      {status}
-    </span>
   );
 }
