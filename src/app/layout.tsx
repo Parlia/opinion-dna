@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { AttributionCapture } from "@/components/AttributionCapture";
 import { Fraunces, DM_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -113,6 +114,7 @@ export default function RootLayout({
       </head>
       <body className={`${fraunces.variable} ${dmSans.variable} antialiased`}>
         {children}
+        <AttributionCapture />
         <Analytics />
         <SpeedInsights />
       </body>

@@ -7,6 +7,7 @@ const NOW = new Date("2026-06-08T12:00:00Z");
 function makeRaw(): AdminRaw {
   return {
     hasInternalColumn: true,
+    hasAttributionColumns: true,
     users: [
       { id: "real1", email: "chad@parry.org", createdAt: "2026-06-07T10:00:00Z" },
       { id: "real2", email: "alex@example.com", createdAt: "2026-06-02T10:00:00Z" },
@@ -15,11 +16,11 @@ function makeRaw(): AdminRaw {
       { id: "refund1", email: "refunded@example.com", createdAt: "2026-04-01T10:00:00Z" },
     ],
     profiles: [
-      { id: "real1", fullName: "Chad", isInternal: false },
-      { id: "real2", fullName: "Alex", isInternal: false },
-      { id: "internal1", fullName: "Turi", isInternal: true },
-      { id: "comp1", fullName: "Comp", isInternal: false },
-      { id: "refund1", fullName: "Refund", isInternal: false },
+      { id: "real1", fullName: "Chad", isInternal: false, utmSource: null, utmMedium: null, referrer: null, landingPath: null },
+      { id: "real2", fullName: "Alex", isInternal: false, utmSource: null, utmMedium: null, referrer: null, landingPath: null },
+      { id: "internal1", fullName: "Turi", isInternal: true, utmSource: null, utmMedium: null, referrer: null, landingPath: null },
+      { id: "comp1", fullName: "Comp", isInternal: false, utmSource: null, utmMedium: null, referrer: null, landingPath: null },
+      { id: "refund1", fullName: "Refund", isInternal: false, utmSource: null, utmMedium: null, referrer: null, landingPath: null },
     ],
     scores: [
       { userId: "real1", createdAt: "2026-06-07T10:30:00Z" },
@@ -121,10 +122,25 @@ describe("buildMetrics", () => {
     expect(m.goal.monthly_revenue_target_gbp).toBe(10000);
   });
 
-  it("scaffolds channels as untracked", () => {
-    expect(m.channels.tracked).toBe(false);
-    expect(m.channels.rows[0].source).toBe("unknown");
-    expect(m.channels.rows[0].sales).toBe(1);
+  it("tracks channels; legacy (uncaptured) users fall into unknown", () => {
+    expect(m.channels.tracked).toBe(true);
+    const unknown = m.channels.rows.find((r) => r.source === "unknown");
+    expect(unknown?.signups).toBe(3); // all 3 real MTD signups are legacy
+    expect(unknown?.sales).toBe(1);
+  });
+
+  it("buckets a user's signup + sale under their attributed channel", () => {
+    const raw = makeRaw();
+    raw.profiles = raw.profiles.map((p) =>
+      p.id === "real1" ? { ...p, utmSource: "tiktok", landingPath: "/" } : p
+    );
+    const mm = buildMetrics(raw, NOW);
+    const tiktok = mm.channels.rows.find((r) => r.source === "tiktok");
+    expect(tiktok?.signups).toBe(1);
+    expect(tiktok?.sales).toBe(1); // real1's $47 personal
+    expect(tiktok?.revenue_usd).toBe(47);
+    // real1 moved out of unknown
+    expect(mm.channels.rows.find((r) => r.source === "unknown")?.signups).toBe(2);
   });
 });
 

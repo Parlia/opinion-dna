@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { deriveChannel } from "@/lib/attribution";
 
 /**
  * Admin scorecard metrics — the single source of truth for opiniondna.com/admin.
@@ -169,6 +170,10 @@ interface RawProfile {
   id: string;
   fullName: string | null;
   isInternal: boolean;
+  utmSource: string | null;
+  utmMedium: string | null;
+  referrer: string | null;
+  landingPath: string | null;
 }
 interface RawPurchase {
   id: string;
@@ -215,6 +220,8 @@ export interface AdminRaw {
   selections: RawSelection[];
   /** Whether profiles.is_internal exists (migration 020 applied). */
   hasInternalColumn: boolean;
+  /** Whether the attribution columns exist (migration 021 applied). */
+  hasAttributionColumns: boolean;
 }
 
 /** Email-based fallback used only before migration 020 adds is_internal. */
@@ -235,17 +242,37 @@ export function isInternalByHeuristic(email: string | null | undefined): boolean
 }
 
 export async function fetchAdminRaw(admin: SupabaseClient): Promise<AdminRaw> {
-  // Try to read the is_internal column; fall back gracefully if migration 020
-  // hasn't been applied yet so the dashboard never 500s.
-  let profilesRows: { id: string; full_name: string | null; is_internal?: boolean }[] = [];
+  // Read the richest set of profile columns available, degrading gracefully so
+  // the dashboard never 500s before migrations 020 (is_internal) / 021
+  // (attribution) are applied.
+  type ProfileSelectRow = {
+    id: string;
+    full_name: string | null;
+    is_internal?: boolean;
+    utm_source?: string | null;
+    utm_medium?: string | null;
+    referrer?: string | null;
+    landing_path?: string | null;
+  };
+  let profilesRows: ProfileSelectRow[] = [];
   let hasInternalColumn = true;
-  const withFlag = await admin.from("profiles").select("id, full_name, is_internal");
-  if (withFlag.error) {
-    hasInternalColumn = false;
-    const noFlag = await admin.from("profiles").select("id, full_name");
-    profilesRows = (noFlag.data ?? []) as typeof profilesRows;
+  let hasAttributionColumns = true;
+
+  const full = await admin
+    .from("profiles")
+    .select("id, full_name, is_internal, utm_source, utm_medium, referrer, landing_path");
+  if (full.error) {
+    hasAttributionColumns = false;
+    const withFlag = await admin.from("profiles").select("id, full_name, is_internal");
+    if (withFlag.error) {
+      hasInternalColumn = false;
+      const noFlag = await admin.from("profiles").select("id, full_name");
+      profilesRows = (noFlag.data ?? []) as ProfileSelectRow[];
+    } else {
+      profilesRows = (withFlag.data ?? []) as ProfileSelectRow[];
+    }
   } else {
-    profilesRows = (withFlag.data ?? []) as typeof profilesRows;
+    profilesRows = (full.data ?? []) as ProfileSelectRow[];
   }
 
   const [usersResult, scoresResult, purchasesResult, reportsResult, invitesResult, selectionsResult] =
@@ -277,12 +304,17 @@ export async function fetchAdminRaw(admin: SupabaseClient): Promise<AdminRaw> {
     isInternal: hasInternalColumn
       ? !!p.is_internal
       : isInternalByHeuristic(emailById.get(p.id)),
+    utmSource: p.utm_source ?? null,
+    utmMedium: p.utm_medium ?? null,
+    referrer: p.referrer ?? null,
+    landingPath: p.landing_path ?? null,
   }));
 
   return {
     users,
     profiles,
     hasInternalColumn,
+    hasAttributionColumns,
     scores: (scoresResult.data ?? []).map((s) => {
       const r = s as { user_id: string; created_at: string };
       return { userId: r.user_id, createdAt: r.created_at };
@@ -505,20 +537,55 @@ export function buildMetrics(raw: AdminRaw, now: Date): AdminMetrics {
     all_time: funnelWindow(null),
   };
 
-  // Channels — UTM/source capture isn't wired yet, so everything is "unknown".
-  // Honest scaffold: real MTD totals in one bucket, flagged untracked.
+  // Channels — group real users + real MTD sales by first-touch channel
+  // (derived from each user's stored attribution). Legacy users with no capture
+  // fall into "unknown". signup→paid is approximated within the MTD window.
+  const profileById = new Map(raw.profiles.map((p) => [p.id, p]));
+  const channelOf = (userId: string) => deriveChannel(profileById.get(userId));
+  interface ChannelAgg {
+    signups: number;
+    sales: number;
+    revenueCents: number;
+    paidPersonal: number;
+  }
+  const bySource = new Map<string, ChannelAgg>();
+  const agg = (src: string): ChannelAgg => {
+    let e = bySource.get(src);
+    if (!e) {
+      e = { signups: 0, sales: 0, revenueCents: 0, paidPersonal: 0 };
+      bySource.set(src, e);
+    }
+    return e;
+  };
+  for (const u of realUsers) {
+    if (ms(u.createdAt) >= monthStart) agg(channelOf(u.id)).signups += 1;
+  }
+  for (const p of mtdSales) {
+    const e = agg(channelOf(p.userId));
+    e.sales += 1;
+    e.revenueCents += p.amountCents;
+    if (p.type === "personal") e.paidPersonal += 1;
+  }
+  const channelRows = [...bySource.entries()]
+    .map(([source, e]) => ({
+      source,
+      signups: e.signups,
+      sales: e.sales,
+      revenue_usd: usd(e.revenueCents),
+      signup_to_paid_rate: rate(e.paidPersonal, e.signups),
+    }))
+    .sort(
+      (a, b) =>
+        b.revenue_usd - a.revenue_usd ||
+        b.signups - a.signups ||
+        a.source.localeCompare(b.source)
+    );
   const channels = {
-    tracked: false,
-    note: "UTM/source capture not yet wired — all signups bucketed as unknown. Add utm_* capture at signup to break this down.",
-    rows: [
-      {
-        source: "unknown",
-        signups: realUsers.filter((u) => ms(u.createdAt) >= monthStart).length,
-        sales: mtdSales.length,
-        revenue_usd: mtdRevenue,
-        signup_to_paid_rate: null,
-      },
-    ],
+    tracked: raw.hasAttributionColumns,
+    note: raw.hasAttributionColumns
+      ? "First-touch attribution (utm_* + external referrer captured at signup). 'unknown' = signed up before capture was wired."
+      : "Attribution columns not present — apply migration 021_profile_attribution.sql. All signups shown as unknown until then.",
+    rows: channelRows,
   };
 
   // Referral / invite loop. Exclude internal senders (founder test invites).
@@ -605,6 +672,7 @@ export interface RecentSale {
 export function buildRecentRealSales(raw: AdminRaw, limit = 12): RecentSale[] {
   const internalIds = new Set(raw.profiles.filter((p) => p.isInternal).map((p) => p.id));
   const emailById = new Map(raw.users.map((u) => [u.id, u.email]));
+  const profileById = new Map(raw.profiles.map((p) => [p.id, p]));
   return raw.purchases
     .filter((p) => p.status === "completed" && p.amountCents > 0 && !internalIds.has(p.userId))
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -614,7 +682,7 @@ export function buildRecentRealSales(raw: AdminRaw, limit = 12): RecentSale[] {
       email: emailById.get(p.userId) ?? "(unknown)",
       type: p.type,
       amountCents: p.amountCents,
-      channel: "unknown",
+      channel: deriveChannel(profileById.get(p.userId)),
     }));
 }
 
@@ -650,7 +718,7 @@ export function buildUserRows(raw: AdminRaw): AdminUserRow[] {
       email: u.email,
       fullName: profileById.get(u.id)?.fullName ?? null,
       isInternal: internalIds.has(u.id),
-      channel: "unknown",
+      channel: deriveChannel(profileById.get(u.id)),
       createdAt: u.createdAt,
       quizCompleted: scoreByUser.has(u.id),
       personalPaid: !!personalCompleted,
