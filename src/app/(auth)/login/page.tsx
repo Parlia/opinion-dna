@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Turnstile, { type TurnstileHandle } from "@/components/auth/Turnstile";
 
 export default function LoginPage() {
   return (
@@ -19,6 +20,8 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const turnstileRef = useRef<TurnstileHandle>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawNext = searchParams.get("next") || "/dashboard";
@@ -34,11 +37,15 @@ function LoginForm() {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
+      options: { captchaToken },
     });
 
     if (error) {
       setError(error.message);
       setLoading(false);
+      // Turnstile tokens are single-use — get a fresh one for the retry.
+      turnstileRef.current?.reset();
+      setCaptchaToken("");
     } else {
       router.push(next);
       router.refresh();
@@ -144,9 +151,16 @@ function LoginForm() {
               <p className="text-sm text-red-600">{error}</p>
             )}
 
+            <Turnstile
+              ref={turnstileRef}
+              onVerify={setCaptchaToken}
+              onExpire={() => setCaptchaToken("")}
+              onError={() => setCaptchaToken("")}
+            />
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !captchaToken}
               className="w-full py-3 px-4 bg-[var(--primary)] text-white rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading ? "Signing in..." : "Sign in"}

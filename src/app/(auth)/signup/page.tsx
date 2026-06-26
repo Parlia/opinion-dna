@@ -1,11 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { deriveFirstName } from "@/lib/auth/display-name";
+import Turnstile, { type TurnstileHandle } from "@/components/auth/Turnstile";
 
 export default function SignupPageWrapper() {
   return (
@@ -33,6 +34,8 @@ function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [inviteFromName, setInviteFromName] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const turnstileRef = useRef<TurnstileHandle>(null);
   const router = useRouter();
 
   // If signup was reached via an invite link, fetch the inviter's name
@@ -84,6 +87,7 @@ function SignupPage() {
       email,
       password,
       options: {
+        captchaToken,
         data: {
           full_name: name,
           preferred_name: finalPreferred,
@@ -95,6 +99,9 @@ function SignupPage() {
     if (error) {
       setError(error.message);
       setLoading(false);
+      // Turnstile tokens are single-use — get a fresh one for the retry.
+      turnstileRef.current?.reset();
+      setCaptchaToken("");
     } else {
       setSuccess(true);
     }
@@ -258,9 +265,16 @@ function SignupPage() {
               <p className="text-sm text-red-600">{error}</p>
             )}
 
+            <Turnstile
+              ref={turnstileRef}
+              onVerify={setCaptchaToken}
+              onExpire={() => setCaptchaToken("")}
+              onError={() => setCaptchaToken("")}
+            />
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !captchaToken}
               className="w-full py-3 px-4 bg-[var(--primary)] text-white rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading ? "Creating account..." : "Create account"}

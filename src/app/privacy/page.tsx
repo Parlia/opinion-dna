@@ -18,7 +18,7 @@ export default function PrivacyPolicyPage() {
       <h1 className="text-3xl md:text-4xl lg:text-5xl text-black leading-tight">
         Privacy Policy
       </h1>
-      <p className="mt-4 text-muted">Last updated: 16 March 2026</p>
+      <p className="mt-4 text-muted">Last updated: 26 June 2026</p>
 
       <div className="mt-12 space-y-10 text-foreground leading-relaxed">
         <section>
@@ -137,6 +137,11 @@ export default function PrivacyPolicyPage() {
             <li>
               <strong>Vercel</strong> — website hosting and analytics.
             </li>
+            <li>
+              <strong>Cloudflare</strong> — bot and abuse protection on our
+              sign-up, sign-in, and password-reset forms (see &ldquo;Bot
+              protection&rdquo; below).
+            </li>
           </ul>
           <p className="mt-3">
             Each provider is bound by their own privacy policies and data
@@ -215,6 +220,34 @@ export default function PrivacyPolicyPage() {
           </p>
           <p className="mt-3">
             We do not use third-party advertising cookies or trackers.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl md:text-2xl text-black mb-4">
+            Bot protection
+          </h2>
+          <p>
+            To protect our sign-up, sign-in, and password-reset forms from
+            automated abuse, we use{" "}
+            <strong>Cloudflare Turnstile</strong>. When you use these forms,
+            Turnstile runs silently in the background and processes client-side
+            signals — such as your IP address, browser User-Agent, and similar
+            technical data — to distinguish real visitors from bots. Cloudflare
+            cannot use these signals to directly identify you, and they are used
+            only for security purposes.
+          </p>
+          <p className="mt-3">
+            Cloudflare&rsquo;s handling of this data is described in the{" "}
+            <a
+              href="https://www.cloudflare.com/turnstile-privacy-policy/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              Cloudflare Turnstile Privacy Addendum
+            </a>
+            .
           </p>
         </section>
 
