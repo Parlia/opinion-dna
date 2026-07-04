@@ -11,15 +11,21 @@ import {
 
 type ToastKind = "success" | "error" | "info";
 
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastItem {
   id: number;
   kind: ToastKind;
   message: string;
   detail?: string;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
-  push: (kind: ToastKind, message: string, detail?: string) => void;
+  push: (kind: ToastKind, message: string, detail?: string, action?: ToastAction) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -37,16 +43,16 @@ export function useToast() {
   const ctx = useContext(ToastContext);
   return useMemo(
     () => ({
-      success: (message: string, detail?: string) => {
-        if (ctx) ctx.push("success", message, detail);
+      success: (message: string, detail?: string, action?: ToastAction) => {
+        if (ctx) ctx.push("success", message, detail, action);
         else console.log("[toast:success]", message, detail || "");
       },
-      error: (message: string, detail?: string) => {
-        if (ctx) ctx.push("error", message, detail);
+      error: (message: string, detail?: string, action?: ToastAction) => {
+        if (ctx) ctx.push("error", message, detail, action);
         else console.error("[toast:error]", message, detail || "");
       },
-      info: (message: string, detail?: string) => {
-        if (ctx) ctx.push("info", message, detail);
+      info: (message: string, detail?: string, action?: ToastAction) => {
+        if (ctx) ctx.push("info", message, detail, action);
         else console.log("[toast:info]", message, detail || "");
       },
     }),
@@ -62,12 +68,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextId = useRef(0);
 
-  const push = useCallback((kind: ToastKind, message: string, detail?: string) => {
+  const push = useCallback((kind: ToastKind, message: string, detail?: string, action?: ToastAction) => {
     const id = ++nextId.current;
-    setToasts((t) => [...t, { id, kind, message, detail }]);
+    setToasts((t) => [...t, { id, kind, message, detail, action }]);
+    // Toasts with an action (e.g. Undo) linger longer so the user has a
+    // realistic window to click it.
     setTimeout(() => {
       setToasts((t) => t.filter((toast) => toast.id !== id));
-    }, 4500);
+    }, action ? 8000 : 4500);
   }, []);
 
   const value = useMemo(() => ({ push }), [push]);
@@ -120,6 +128,18 @@ function ToastCard({
         <p className="text-sm font-medium leading-tight">{toast.message}</p>
         {toast.detail && (
           <p className="mt-1 text-xs opacity-80 leading-snug">{toast.detail}</p>
+        )}
+        {toast.action && (
+          <button
+            type="button"
+            onClick={() => {
+              toast.action?.onClick();
+              onDismiss();
+            }}
+            className="mt-2 text-xs font-semibold underline underline-offset-2 hover:opacity-70 transition-opacity"
+          >
+            {toast.action.label}
+          </button>
         )}
       </div>
       <button

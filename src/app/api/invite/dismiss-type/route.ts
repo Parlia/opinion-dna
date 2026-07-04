@@ -9,13 +9,18 @@ const VALID_TYPES = ["couples", "cofounders", "friends"] as const;
 /**
  * POST /api/invite/dismiss-type
  *
- * Body: { inviteId, relationshipType }
+ * Body: { inviteId, relationshipType, undo? }
  *
  * Marks a (invite, relationship_type) pair as "not applicable" so it stops
  * rendering in /compare's Joined section. Only permitted when nothing has
  * been selected yet — a confirmed selection or a completed report means
  * someone has already committed (and possibly paid), which is a support
  * issue rather than a dismiss.
+ *
+ * With { undo: true }, reverses a dismissal: a row that only existed to
+ * record the dismissal is deleted outright (so pricing reads selectionState
+ * "none" again); a pre-existing selection that was dismissed has its
+ * dismissed_at/dismissed_by cleared, restoring the prior selection state.
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -24,7 +29,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { inviteId, relationshipType } = await request.json();
+  const { inviteId, relationshipType, undo } = await request.json();
   if (!inviteId || !VALID_TYPES.includes(relationshipType)) {
     return NextResponse.json(
       { error: "inviteId and valid relationshipType required" },
@@ -48,10 +53,34 @@ export async function POST(request: Request) {
 
   const { data: existing } = await admin
     .from("comparison_selections")
-    .select("id, report_id, confirmed_by, dismissed_at")
+    .select("id, report_id, selected_by, confirmed_by, dismissed_at, dismissed_by")
     .eq("invite_id", inviteId)
     .eq("relationship_type", relationshipType)
     .maybeSingle();
+
+  if (undo === true) {
+    // Nothing dismissed (or a report already exists) — noop success either
+    // way; there's no dismissal left to reverse.
+    if (!existing?.dismissed_at || existing.report_id) {
+      return NextResponse.json({ ok: true, already: true });
+    }
+    // A row created purely to record the dismissal (dismisser is also the
+    // "selector" and nothing was confirmed) should be deleted, not revived —
+    // clearing dismissed_at alone would make it read as a live selection.
+    const pureDismissRow =
+      !existing.confirmed_by && existing.selected_by === existing.dismissed_by;
+    const { error } = pureDismissRow
+      ? await admin.from("comparison_selections").delete().eq("id", existing.id)
+      : await admin
+          .from("comparison_selections")
+          .update({ dismissed_at: null, dismissed_by: null })
+          .eq("id", existing.id);
+    if (error) {
+      console.error("dismiss-type: failed to undo dismissal", error);
+      return NextResponse.json({ error: "Failed to undo" }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
 
   // Already dismissed — noop success.
   if (existing?.dismissed_at) {

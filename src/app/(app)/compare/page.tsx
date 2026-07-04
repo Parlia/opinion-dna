@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -119,7 +119,9 @@ function ComparePage() {
   const [selectingType, setSelectingType] = useState<string | null>(null);
   const [retryingType, setRetryingType] = useState<string | null>(null);
   const [dismissingType, setDismissingType] = useState<string | null>(null);
-  const [generateError, setGenerateError] = useState<string | null>(null);
+  // Scoped to the invite that actually failed — an unscoped string here
+  // used to render the same error banner under every joined card.
+  const [generateError, setGenerateError] = useState<{ inviteId: string; message: string } | null>(null);
   // Invites addressed to the current user's email that never got linked
   // because they signed up directly instead of clicking the magic link.
   // Surfaced as a separate "Invites for you" section so they can accept
@@ -205,9 +207,12 @@ function ComparePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  useEffect(() => {
-    async function loadData() {
-      const supabase = createClient();
+  // Load (and re-load) everything the page renders: invites, participant
+  // names, claimable invites, and example reports. Called on mount, then
+  // re-called by the polling/visibility effects below so invite acceptances
+  // and finished reports show up without a manual reload.
+  const refreshData = useCallback(async () => {
+    const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setCurrentUserId(user.id);
@@ -302,28 +307,94 @@ function ComparePage() {
       }
 
       setLoading(false);
-    }
-    loadData();
   }, []);
 
-  // Fetch all three types for joined invites on mount / when invites change
+  useEffect(() => {
+    // refreshData is async — every setState in it happens after an await,
+    // so there's no synchronous cascading render here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refreshData();
+  }, [refreshData]);
+
+  // Fetch all three types for joined invites on mount / when invites change.
+  // refreshData produces a new invites array each run, so every poll also
+  // re-fetches pricing — that's how a report finishing server-side moves the
+  // row into Comparison Results without a manual reload.
   useEffect(() => {
     const joinedInvites = invites.filter(i => i.status === "accepted");
     fetchAllPricing(joinedInvites);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invites]);
 
-  // Re-fetch pricing when tab regains focus
+  // Live updates: poll while the tab is visible so partner actions (accepting
+  // an invite, paying, finishing their assessment) and report completion
+  // appear on their own. 15s is snappy enough to feel live without hammering
+  // the API — report generation itself takes 2-4 minutes.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") refreshData();
+    }, 15000);
+    return () => clearInterval(id);
+  }, [refreshData]);
+
+  // Also refresh immediately when the tab regains focus (e.g. coming back
+  // from the invite email or a Stripe checkout in another tab).
   useEffect(() => {
     function handleVisibility() {
-      if (document.visibilityState === "visible") {
-        const joinedInvites = invites.filter(i => i.status === "accepted");
-        fetchAllPricing(joinedInvites);
-      }
+      if (document.visibilityState === "visible") refreshData();
     }
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [invites, fetchAllPricing]);
+  }, [refreshData]);
+
+  // Celebrate a partner joining while the user is watching. Compares joined
+  // invite ids across refreshes; the loading guard keeps the initial load
+  // from registering every existing invite as "new".
+  const prevJoinedIdsRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (loading) return;
+    const ids = new Set(invites.filter((i) => i.status === "accepted").map((i) => i.id));
+    const prev = prevJoinedIdsRef.current;
+    prevJoinedIdsRef.current = ids;
+    if (!prev) return;
+    for (const id of ids) {
+      if (prev.has(id)) continue;
+      const invite = invites.find((i) => i.id === id);
+      if (invite) {
+        toast.success(
+          `${getDisplayName(invite)} accepted your invite!`,
+          "Pick a comparison type below to generate your report.",
+        );
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invites, loading]);
+
+  // Same idea for reports finishing: when a pricing refresh flips a type to
+  // "complete", the row silently moves from Joined to Comparison Results —
+  // tell the user why, since they may be mid-scroll when it happens.
+  const prevPricingRef = useRef<Record<string, PricingData>>({});
+  useEffect(() => {
+    const prev = prevPricingRef.current;
+    prevPricingRef.current = pricing;
+    for (const [key, p] of Object.entries(pricing)) {
+      const old = prev[key];
+      if (!old || old.selectionState === "complete" || p.selectionState !== "complete") continue;
+      // key is `${inviteId}_${type}`; invite ids contain hyphens but no
+      // underscores, so split on the last underscore.
+      const idx = key.lastIndexOf("_");
+      const inviteId = key.slice(0, idx);
+      const type = key.slice(idx + 1) as RelationshipType;
+      const invite = invites.find((i) => i.id === inviteId);
+      if (invite) {
+        toast.success(
+          `Your ${TYPE_LABELS[type]} report with ${getDisplayName(invite).split(" ")[0]} is ready!`,
+          "Find it under Comparison Results below.",
+        );
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricing]);
 
   async function handleSelectType(inviteId: string, type: RelationshipType) {
     const key = pricingKey(inviteId, type);
@@ -360,7 +431,7 @@ function ComparePage() {
         );
         for (const t of RELATIONSHIP_TYPES) fetchPricing(inviteId, t);
       } else if (result.error) {
-        setGenerateError(result.error);
+        setGenerateError({ inviteId, message: result.error });
       } else {
         // Re-fetch all pricing for this invite to get updated states
         for (const t of RELATIONSHIP_TYPES) {
@@ -368,7 +439,7 @@ function ComparePage() {
         }
       }
     } catch {
-      setGenerateError("Network error. Check your connection and try again.");
+      setGenerateError({ inviteId, message: "Network error. Check your connection and try again." });
     }
     setSelectingType(null);
   }
@@ -389,14 +460,15 @@ function ComparePage() {
       });
       const result = await res.json();
       if (result.status === "failed" || result.error) {
-        setGenerateError(
-          result.error || "Report generation failed again. Please try once more or contact support.",
-        );
+        setGenerateError({
+          inviteId,
+          message: result.error || "Report generation failed again. Please try once more or contact support.",
+        });
       } else {
         for (const t of RELATIONSHIP_TYPES) fetchPricing(inviteId, t);
       }
     } catch {
-      setGenerateError("Network error. Check your connection and try again.");
+      setGenerateError({ inviteId, message: "Network error. Check your connection and try again." });
     }
     setRetryingType(null);
   }
@@ -404,18 +476,20 @@ function ComparePage() {
   // Hide a type from the Joined list. Persists to
   // comparison_selections.dismissed_at, so it stays gone on reload and for
   // the other participant too. Only reachable when selectionState === "none"
-  // (the backend also enforces this).
+  // (the backend also enforces this). No confirm dialog — the row hides
+  // optimistically and the toast offers an Undo instead.
   async function handleDismissType(inviteId: string, type: RelationshipType) {
     const typeLabel = TYPE_LABELS[type];
     const partnerName = (() => {
       const invite = invites.find((i) => i.id === inviteId);
       return invite ? getDisplayName(invite).split(" ")[0] : "them";
     })();
-    if (!confirm(`Hide the ${typeLabel} comparison with ${partnerName}? You can't undo this from the UI yet.`)) {
-      return;
-    }
     const key = pricingKey(inviteId, type);
     setDismissingType(key);
+    setPricing((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] as PricingData), dismissed: true },
+    }));
     try {
       const res = await fetch("/api/invite/dismiss-type", {
         method: "POST",
@@ -424,20 +498,49 @@ function ComparePage() {
       });
       const result = await res.json();
       if (result.error) {
-        toast.error(result.error);
-      } else {
-        // Optimistically mark dismissed so the row disappears immediately —
-        // pricing re-fetch will reconcile if anything raced.
         setPricing((prev) => ({
           ...prev,
-          [key]: { ...(prev[key] as PricingData), dismissed: true },
+          [key]: { ...(prev[key] as PricingData), dismissed: false },
         }));
-        fetchPricing(inviteId, type);
+        toast.error(result.error);
+      } else {
+        toast.info(
+          `${typeLabel} comparison with ${partnerName} hidden`,
+          "It's hidden for both of you.",
+          { label: "Undo", onClick: () => handleUndoDismiss(inviteId, type) },
+        );
       }
     } catch {
+      setPricing((prev) => ({
+        ...prev,
+        [key]: { ...(prev[key] as PricingData), dismissed: false },
+      }));
       toast.error("Network error", "Check your connection and try again.");
     }
     setDismissingType(null);
+  }
+
+  async function handleUndoDismiss(inviteId: string, type: RelationshipType) {
+    const key = pricingKey(inviteId, type);
+    // Optimistically restore the row; the pricing re-fetch reconciles.
+    setPricing((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] as PricingData), dismissed: false },
+    }));
+    try {
+      const res = await fetch("/api/invite/dismiss-type", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteId, relationshipType: type, undo: true }),
+      });
+      const result = await res.json();
+      if (result.error) {
+        toast.error(result.error);
+      }
+      fetchPricing(inviteId, type);
+    } catch {
+      toast.error("Network error", "Check your connection and try again.");
+    }
   }
 
   async function handleClaim(inviteId: string) {
@@ -450,10 +553,14 @@ function ComparePage() {
       });
       const result = await res.json();
       if (result.ok) {
-        // Remove from claimable list immediately; loadData on next page
-        // load will refetch the now-accepted invite into the Joined section.
+        // Remove from claimable immediately, then pull fresh data so the
+        // now-accepted invite lands in Joined without a manual reload.
         setClaimable((prev) => prev.filter((i) => i.id !== inviteId));
-        toast.success("Invite accepted", "Reload to see them under Joined.");
+        toast.success("Invite accepted", "They're in your Joined list below.");
+        // The user accepted this one themselves — don't let the "partner
+        // joined" watcher toast about it too when the refresh lands.
+        prevJoinedIdsRef.current?.add(inviteId);
+        refreshData();
       } else {
         toast.error(result.error || "Failed to accept invite");
       }
@@ -597,7 +704,11 @@ function ComparePage() {
   function renderTypeRow(invite: Invite, type: RelationshipType) {
     const key = pricingKey(invite.id, type);
     const typePricing = pricing[key];
-    const isLoading = pricingLoading.has(key);
+    // Only show the loading state on the FIRST fetch. Background polls
+    // re-fetch pricing every 15s — flashing "Loading..." over the buttons
+    // each time would make the page feel broken, so keep rendering the
+    // cached state until fresh data lands.
+    const isLoading = pricingLoading.has(key) && !typePricing;
     const isSelecting = selectingType === key;
     const partnerName = getDisplayName(invite).split(" ")[0];
 
@@ -790,7 +901,7 @@ function ComparePage() {
     }
 
     const typeStyle = TYPE_STYLE[type];
-    // "Not applicable" escape hatch — only offered before anyone's committed
+    // "Hide" escape hatch — only offered before anyone's committed
     // anything. Once selected or confirmed, dismissal becomes a refund issue
     // and the backend refuses it anyway.
     const canDismiss = typePricing?.selectionState === "none";
@@ -819,10 +930,14 @@ function ComparePage() {
             <button
               onClick={() => handleDismissType(invite.id, type)}
               disabled={isDismissing}
-              title={`Hide this ${TYPE_LABELS[type]} comparison — you won't see it in Joined anymore.`}
-              className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] underline-offset-2 hover:underline disabled:opacity-50"
+              aria-label={`Hide the ${TYPE_LABELS[type]} comparison with ${partnerName}`}
+              title={`Not relevant? Hide the ${TYPE_LABELS[type]} comparison for you and ${partnerName}. You can undo right after.`}
+              className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--muted)] hover:bg-[var(--beige-light)] transition-colors disabled:opacity-50"
             >
-              {isDismissing ? "Hiding..." : "Not applicable"}
+              <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M2.5 2.5l7 7m0-7l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              {isDismissing ? "Hiding..." : "Hide"}
             </button>
           )}
         </div>
@@ -971,9 +1086,9 @@ function ComparePage() {
                     {RELATIONSHIP_TYPES.map(type => renderTypeRow(invite, type))}
                   </div>
 
-                  {generateError && (
+                  {generateError && generateError.inviteId === invite.id && (
                     <div className="mt-3 sm:ml-14 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-700">{generateError}</p>
+                      <p className="text-sm text-red-700">{generateError.message}</p>
                       <button
                         onClick={() => setGenerateError(null)}
                         className="mt-1 text-sm font-medium text-red-600 hover:text-red-800"
