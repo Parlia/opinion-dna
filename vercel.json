@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron/quiz-nudge",
+      "schedule": "0 9 * * *"
+    }
+  ],
   "functions": {
     "src/app/api/report/generate/route.ts": {
       "maxDuration": 800

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendInviteAcceptedEmail } from "@/lib/email/resend";
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
@@ -104,6 +105,19 @@ export async function GET(request: NextRequest) {
         .is("to_user_id", null)
         .ilike("to_email", inviterEmail)
         .eq("status", "pending");
+
+      // Let the inviter know their invitee joined (best-effort, never blocks).
+      const { data: accepterProfile } = await admin
+        .from("profiles")
+        .select("full_name, preferred_name")
+        .eq("id", user.id)
+        .single();
+      const accepterName =
+        accepterProfile?.preferred_name?.trim() ||
+        accepterProfile?.full_name?.trim() ||
+        user.email ||
+        "Your invitee";
+      await sendInviteAcceptedEmail(inviterEmail, accepterName);
     }
   }
 

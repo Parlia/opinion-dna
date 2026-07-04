@@ -61,10 +61,17 @@ export async function POST(request: Request) {
       }
 
       if (inviteId && purchaseId) {
-        await supabase.from("invites").update({
+        // A failure here would leave the purchase unlinked from its invite,
+        // so surface it as a 500 — Stripe retries the webhook, and the
+        // purchase insert above is idempotent under replay.
+        const { error: linkError } = await supabase.from("invites").update({
           comparison_purchase_id: purchaseId,
           ...(relationshipType && { relationship_type: relationshipType }),
         }).eq("id", inviteId);
+        if (linkError) {
+          console.error("[stripe.webhook] invite link update failed", linkError);
+          return NextResponse.json({ error: "invite link update failed" }, { status: 500 });
+        }
       }
     }
   }

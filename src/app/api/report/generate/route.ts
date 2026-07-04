@@ -12,6 +12,7 @@ import { PARLIA_AVERAGES } from "@/lib/scoring/elements";
 import { hasPurchase } from "@/lib/auth/require-purchase";
 import { rateLimit } from "@/lib/auth/rate-limit";
 import { streamClaude } from "@/lib/report/claude-stream";
+import { sendReportReadyEmail } from "@/lib/email/resend";
 
 // 800s ceiling requires Fluid Compute to be enabled in the Vercel project
 // settings. Personal-report generation runs multiple Claude calls back-to-back;
@@ -139,6 +140,14 @@ Your Opinion DNA is yours. It's the map to your mental territory. The more fluen
         status: "completed",
       })
       .eq("id", report.id);
+
+    // Best-effort: most users are watching this page, but if they closed the
+    // tab during the multi-minute generation this is how they find out.
+    if (user.email) {
+      const displayName =
+        profile?.preferred_name?.trim() || profile?.full_name?.trim() || "";
+      await sendReportReadyEmail(user.email, displayName);
+    }
 
     return NextResponse.json({ reportId: report.id, status: "completed" });
   } catch (error) {

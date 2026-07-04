@@ -4,6 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { safeRedirectPath } from "@/lib/auth/safe-redirect";
 import { deriveFirstName } from "@/lib/auth/display-name";
 import { ATTR_COOKIE, parseAttributionCookie } from "@/lib/attribution";
+import {
+  sendInviteAcceptedEmail,
+  sendWelcomeEmail,
+} from "@/lib/email/resend";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -14,9 +18,6 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // Safety net: auto-accept any pending invites addressed to this user's
-      // email. Covers the case where the /api/invite/accept redirect round-trip
-      // lost the ?token (e.g. the user took a detour through Google OAuth).
       const { data: { user } } = await supabase.auth.getUser();
       let attrHandled = false;
 
@@ -27,12 +28,13 @@ export async function GET(request: Request) {
           // Safety net: auto-accept any pending invites addressed to this user's
           // email. Covers the case where the /api/invite/accept redirect round-trip
           // lost the ?token (e.g. the user took a detour through Google OAuth).
-          await admin
+          const { data: autoAccepted } = await admin
             .from("invites")
             .update({ to_user_id: user.id, status: "accepted" })
             .ilike("to_email", user.email)
             .eq("status", "pending")
-            .neq("from_user_id", user.id); // never auto-accept self-invites
+            .neq("from_user_id", user.id) // never auto-accept self-invites
+            .select("from_user_id");
 
           // Backfill preferred_name for Google OAuth signups — they never see
           // the signup form, so profiles.preferred_name would otherwise stay
@@ -51,6 +53,61 @@ export async function GET(request: Request) {
                 .update({ preferred_name: derived })
                 .eq("id", user.id);
             }
+          }
+
+          // Notify inviters whose invite was just auto-accepted above.
+          // Best-effort: a failure here must never block the auth redirect.
+          try {
+            const inviterIds = [
+              ...new Set(
+                (autoAccepted ?? [])
+                  .map((row) => row.from_user_id)
+                  .filter((id): id is string => Boolean(id)),
+              ),
+            ];
+            if (inviterIds.length > 0) {
+              const accepterName =
+                profile?.preferred_name?.trim() ||
+                profile?.full_name?.trim() ||
+                user.email;
+              for (const inviterId of inviterIds) {
+                const { data: inviterAuth } =
+                  await admin.auth.admin.getUserById(inviterId);
+                if (inviterAuth.user?.email) {
+                  await sendInviteAcceptedEmail(
+                    inviterAuth.user.email,
+                    accepterName,
+                  );
+                }
+              }
+            }
+          } catch {
+            /* notification is best-effort */
+          }
+
+          // Welcome email: once per account, only for accounts created in the
+          // last 24h (so existing users never get one on a later login). The
+          // conditional update is the atomic claim — concurrent callbacks
+          // can't double-send. Tolerates migration 022 not being applied
+          // (update errors → claimedWelcome null → skip).
+          try {
+            const dayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
+            const { data: claimedWelcome } = await admin
+              .from("profiles")
+              .update({ welcome_email_sent_at: new Date().toISOString() })
+              .eq("id", user.id)
+              .is("welcome_email_sent_at", null)
+              .gt("created_at", dayAgo)
+              .select("full_name, preferred_name");
+            if (claimedWelcome && claimedWelcome.length > 0) {
+              const w = claimedWelcome[0];
+              await sendWelcomeEmail(
+                user.email,
+                w.preferred_name?.trim() || deriveFirstName(w.full_name) || "",
+              );
+            }
+          } catch {
+            /* welcome email is best-effort */
           }
         }
 

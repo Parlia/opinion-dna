@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendInviteAcceptedEmail } from "@/lib/email/resend";
 
 export const dynamic = "force-dynamic";
 
@@ -120,6 +121,18 @@ export async function POST(request: Request) {
         .is("to_user_id", null)
         .ilike("to_email", inviterEmail)
         .eq("status", "pending");
+
+      // Let the inviter know their invitee joined (best-effort, never blocks).
+      const { data: accepterProfile } = await admin
+        .from("profiles")
+        .select("full_name, preferred_name")
+        .eq("id", user.id)
+        .single();
+      const accepterName =
+        accepterProfile?.preferred_name?.trim() ||
+        accepterProfile?.full_name?.trim() ||
+        user.email;
+      await sendInviteAcceptedEmail(inviterEmail, accepterName);
     }
   }
 
