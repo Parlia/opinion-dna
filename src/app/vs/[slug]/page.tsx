@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { competitors, OPINION_DNA } from "@/data/seo/competitors";
 import SEOPageLayout, {
+  articleJsonLd,
   Breadcrumbs,
   ComparisonTable,
   DimensionBadges,
@@ -75,7 +76,15 @@ export default async function ComparePage({
   ];
 
   return (
-    <SEOPageLayout>
+    <SEOPageLayout
+      jsonLd={[
+        articleJsonLd({
+          headline: `Opinion DNA vs ${competitor.shortName} — Which Is Right For You?`,
+          description: `Compare Opinion DNA and ${competitor.shortName} side by side. See how 48 dimensions across personality, values, and meta-thinking compares to ${competitor.dimensions}.`,
+          path: `/vs/${slug}`,
+        }),
+      ]}
+    >
       <Breadcrumbs
         items={[
           { label: "Home", href: "/" },

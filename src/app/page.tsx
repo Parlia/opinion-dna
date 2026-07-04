@@ -42,6 +42,33 @@ const productJsonLd = {
     availability: "https://schema.org/InStock",
     url: "https://www.opiniondna.com",
   },
+  // Real user testimonials shown in the Testimonials section. Deliberately no
+  // ratingValue/AggregateRating — we don't collect star ratings, and invented
+  // ones violate Google's structured-data guidelines.
+  review: [
+    {
+      "@type": "Review",
+      reviewBody: "This is so beautiful. A window into my mind.",
+      author: { "@type": "Person", name: "Nicola B." },
+    },
+    {
+      "@type": "Review",
+      reviewBody:
+        "This is life changing. I wish I had known my Opinion DNA twenty years ago!",
+      author: { "@type": "Person", name: "Tim H." },
+    },
+    {
+      "@type": "Review",
+      reviewBody: "This is better than 10 years of therapy. Totally crazy!",
+      author: { "@type": "Person", name: "Sarah H." },
+    },
+    {
+      "@type": "Review",
+      reviewBody:
+        "I loved how much my Opinion DNA got me. Much more complete than just my personality.",
+      author: { "@type": "Person", name: "Alessandra M." },
+    },
+  ],
 };
 
 const faqJsonLd = {

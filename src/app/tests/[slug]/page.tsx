@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { keywordPages } from "@/data/seo/keywords";
 import SEOPageLayout, {
+  articleJsonLd,
   Breadcrumbs,
   DimensionBadges,
   SEOPageCTA,
@@ -44,7 +45,15 @@ export default async function KeywordPage({
     .slice(0, 4);
 
   return (
-    <SEOPageLayout>
+    <SEOPageLayout
+      jsonLd={[
+        articleJsonLd({
+          headline: page.metaTitle,
+          description: page.description,
+          path: `/tests/${slug}`,
+        }),
+      ]}
+    >
       <Breadcrumbs
         items={[
           { label: "Home", href: "/" },

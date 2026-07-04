@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { useCases } from "@/data/seo/use-cases";
 import SEOPageLayout, {
+  articleJsonLd,
   Breadcrumbs,
   DimensionBadges,
   SEOPageCTA,
@@ -40,7 +41,15 @@ export default async function UseCasePage({
   if (!useCase) notFound();
 
   return (
-    <SEOPageLayout>
+    <SEOPageLayout
+      jsonLd={[
+        articleJsonLd({
+          headline: useCase.metaTitle,
+          description: useCase.description,
+          path: `/for/${slug}`,
+        }),
+      ]}
+    >
       <Breadcrumbs
         items={[
           { label: "Home", href: "/" },

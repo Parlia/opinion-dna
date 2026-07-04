@@ -1,0 +1,28 @@
+# Opinion DNA
+
+> Opinion DNA is a psychographic assessment that maps how a person thinks across 48 dimensions in three layers — Personality (12 dimensions), Values (24 dimensions), and Meta-Thinking (12 dimensions) — plus a Cognitive Signature describing how they form and hold beliefs. A 179-question assessment ($47, 10–15 minutes) produces dimension scores benchmarked against the population and an AI-generated personal report. Couples, friends, and co-founders can compare profiles with shared compatibility reports.
+
+Opinion DNA was developed over three years in consultation with academic psychologists and behavioral scientists from Royal Holloway, Oxford, Cambridge, the University of Pennsylvania, City University, and NYU, drawing on interviews with 60+ experts in personality, behavioral economics, evolutionary psychology, and cognition. It is built by the team behind Parlia and the book "Why We Think What We Think" by Turi Munthe (Penguin).
+
+Unlike MBTI, Big Five, or Enneagram tests, Opinion DNA measures values and meta-thinking alongside personality — not just what someone believes, but how they believe.
+
+## Product
+
+- [Personal Assessment](https://www.opiniondna.com/personal-assessment): The core 48-dimension assessment and report ($47)
+- [Couples Report](https://www.opiniondna.com/couples): Compatibility report for partners
+- [Co-Founders Report](https://www.opiniondna.com/co-founders): Values and risk-alignment report for business partners
+- [Teams](https://www.opiniondna.com/teams): Cognitive diversity mapping for teams
+- [Friends](https://www.opiniondna.com/friends): Free friendship comparison
+
+## Learn
+
+- [The Book](https://www.opiniondna.com/book): "Why We Think What We Think" by Turi Munthe (Penguin)
+- [Test Guides](https://www.opiniondna.com/tests): Guides to personality, values, and thinking-style tests
+- [Use Cases](https://www.opiniondna.com/for): Opinion DNA for personal growth, relationships, careers, and more
+- [Comparisons](https://www.opiniondna.com/vs): Opinion DNA vs MBTI, Big Five, Enneagram, and other assessments
+- [Alternatives](https://www.opiniondna.com/alternatives): Alternatives to popular personality tests
+
+## Company
+
+- [Referral Program](https://www.opiniondna.com/referrals): For therapists, coaches, and counsellors
+- Contact: hello@opiniondna.com

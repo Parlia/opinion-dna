@@ -12,6 +12,44 @@ function JsonLd({ data }: { data: Record<string, unknown> }) {
   );
 }
 
+/**
+ * Article JSON-LD for long-form SEO pages. Pass the result into
+ * SEOPageLayout's `jsonLd` prop. Dates are intentionally omitted — these
+ * pages are evergreen and a fake datePublished is worse than none.
+ */
+export function articleJsonLd({
+  headline,
+  description,
+  path,
+}: {
+  headline: string;
+  description: string;
+  path: string;
+}): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline,
+    description,
+    url: `https://www.opiniondna.com${path}`,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": `https://www.opiniondna.com${path}`,
+    },
+    image: "https://www.opiniondna.com/opengraph-image",
+    author: {
+      "@type": "Organization",
+      name: "Opinion DNA",
+      url: "https://www.opiniondna.com",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Opinion DNA",
+      url: "https://www.opiniondna.com",
+    },
+  };
+}
+
 export function Breadcrumbs({ items }: { items: { label: string; href?: string }[] }) {
   const jsonLd = {
     "@context": "https://schema.org",
@@ -121,18 +159,18 @@ export function SEOPageFAQ({ items, pageUrl }: { items: { question: string; answ
 export function DimensionBadges() {
   return (
     <div className="flex flex-wrap gap-3 mt-6">
-      <span className="inline-flex items-center gap-2 text-sm text-muted bg-white px-3 py-1.5 rounded-full border border-border">
+      <Link href="/dimensions" className="inline-flex items-center gap-2 text-sm text-muted bg-white px-3 py-1.5 rounded-full border border-border hover:border-primary hover:text-primary transition-colors">
         <span className="w-2 h-2 rounded-full bg-[#00B922]" />
         12 Personality elements
-      </span>
-      <span className="inline-flex items-center gap-2 text-sm text-muted bg-white px-3 py-1.5 rounded-full border border-border">
+      </Link>
+      <Link href="/dimensions" className="inline-flex items-center gap-2 text-sm text-muted bg-white px-3 py-1.5 rounded-full border border-border hover:border-primary hover:text-primary transition-colors">
         <span className="w-2 h-2 rounded-full bg-[#0054FF]" />
         24 Values elements
-      </span>
-      <span className="inline-flex items-center gap-2 text-sm text-muted bg-white px-3 py-1.5 rounded-full border border-border">
+      </Link>
+      <Link href="/dimensions" className="inline-flex items-center gap-2 text-sm text-muted bg-white px-3 py-1.5 rounded-full border border-border hover:border-primary hover:text-primary transition-colors">
         <span className="w-2 h-2 rounded-full bg-[#8A00FF]" />
         12 Meta-Thinking elements
-      </span>
+      </Link>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { alternativePages, competitors, OPINION_DNA } from "@/data/seo/competitors";
 import SEOPageLayout, {
+  articleJsonLd,
   Breadcrumbs,
   DimensionBadges,
   SEOPageCTA,
@@ -110,7 +111,15 @@ export default async function AlternativesPage({
   ];
 
   return (
-    <SEOPageLayout>
+    <SEOPageLayout
+      jsonLd={[
+        articleJsonLd({
+          headline: page.title,
+          description: page.description,
+          path: `/alternatives/${slug}`,
+        }),
+      ]}
+    >
       <Breadcrumbs
         items={[
           { label: "Home", href: "/" },

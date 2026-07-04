@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { competitors, alternativePages } from "@/data/seo/competitors";
 import { useCases } from "@/data/seo/use-cases";
 import { keywordPages } from "@/data/seo/keywords";
+import { dimensionPages } from "@/data/seo/dimensions";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://www.opiniondna.com";
@@ -39,13 +40,39 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
+  // Product & marketing landing pages
+  const productPages: MetadataRoute.Sitemap = [
+    "/personal-assessment",
+    "/couples",
+    "/co-founders",
+    "/teams",
+    "/friends",
+    "/book",
+    "/referrals",
+  ].map((path) => ({
+    url: `${baseUrl}${path}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
   // Hub pages
   const hubPages: MetadataRoute.Sitemap = [
     { url: `${baseUrl}/vs`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
     { url: `${baseUrl}/alternatives`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
     { url: `${baseUrl}/for`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
     { url: `${baseUrl}/tests`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
+    { url: `${baseUrl}/dimensions`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
+    { url: `${baseUrl}/methodology`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
   ];
+
+  // Dimension glossary pages
+  const dimPages: MetadataRoute.Sitemap = dimensionPages.map((d) => ({
+    url: `${baseUrl}/dimensions/${d.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
 
   // Comparison pages
   const comparePages: MetadataRoute.Sitemap = competitors.map((c) => ({
@@ -79,5 +106,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  return [...staticPages, ...hubPages, ...comparePages, ...altPages, ...useCasePages, ...kwPages];
+  return [...staticPages, ...productPages, ...hubPages, ...dimPages, ...comparePages, ...altPages, ...useCasePages, ...kwPages];
 }

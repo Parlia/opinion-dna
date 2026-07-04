@@ -71,6 +71,16 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/dimensions" className="hover:text-white transition-colors">
+                  The 48 Dimensions
+                </Link>
+              </li>
+              <li>
+                <Link href="/methodology" className="hover:text-white transition-colors">
+                  Methodology
+                </Link>
+              </li>
+              <li>
                 <Link href="/book" className="hover:text-white transition-colors">
                   The Book
                 </Link>
