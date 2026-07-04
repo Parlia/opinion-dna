@@ -54,7 +54,10 @@ export async function GET() {
 
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    // "load" is sufficient — the template inlines all CSS and makes no
+    // network requests (and newer puppeteer-core types no longer accept
+    // networkidle0 here).
+    await page.setContent(html, { waitUntil: "load" });
 
     const dateStr = new Date().toLocaleDateString("en-GB", {
       day: "numeric",

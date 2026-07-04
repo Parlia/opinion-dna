@@ -6,7 +6,7 @@
  * can render it via page.setContent() without any network requests.
  */
 
-import { Marked, type Tokens } from "marked";
+import { Marked, type RendererThis, type Tokens } from "marked";
 import { ELEMENTS, PARLIA_AVERAGES } from "@/lib/scoring/elements";
 import { getScoreLevel } from "@/lib/scoring/engine";
 
@@ -177,26 +177,23 @@ function renderMarkdown(md: string): string {
         return `<table style="width:100%;text-align:left;border-collapse:collapse;border:1px solid #D5D0C6;border-radius:8px;overflow:hidden;font-size:13px;margin:16px 0;"><thead style="background:#222;color:#fff;">${headerHtml}</thead><tbody>${bodyHtml}</tbody></table>`;
       },
 
-      heading(token: Tokens.Heading) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const text = (this as any).parser.parseInline(token.tokens);
+      heading(this: RendererThis, token: Tokens.Heading) {
+        const text = this.parser.parseInline(token.tokens);
         if (token.depth === 1) return `<h1 style="font-size:24px;font-weight:700;color:#000;margin:0 0 8px;">${text}</h1>`;
         if (token.depth === 2) return `<h2 style="font-size:18px;font-weight:700;color:#000;margin:28px 0 12px;padding-bottom:8px;border-bottom:2px solid #6F00FF;">${text}</h2>`;
         return `<h3 style="font-size:14px;font-weight:700;color:#222;margin:18px 0 8px;">${text}</h3>`;
       },
 
-      paragraph(token: Tokens.Paragraph) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const text = (this as any).parser.parseInline(token.tokens);
+      paragraph(this: RendererThis, token: Tokens.Paragraph) {
+        const text = this.parser.parseInline(token.tokens);
         return `<p style="color:#333;line-height:1.7;margin-bottom:14px;font-size:14px;">${text}</p>`;
       },
 
-      list(token: Tokens.List) {
+      list(this: RendererThis, token: Tokens.List) {
         const tag = token.ordered ? "ol" : "ul";
         let itemsHtml = "";
         for (const item of token.items) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const text = (this as any).parser.parseInline(item.tokens);
+          const text = this.parser.parseInline(item.tokens);
           itemsHtml += `<li style="margin-bottom:4px;">${text}</li>`;
         }
         return `<${tag} style="margin-left:20px;margin-bottom:14px;color:#333;font-size:14px;line-height:1.7;">${itemsHtml}</${tag}>`;
