@@ -1,20 +1,24 @@
 import type { Metadata } from "next";
+import { ROOT_OG_IMAGES, ROOT_TWITTER_IMAGES } from "@/lib/seo/share-images";
 import SEOPageLayout, {
   Breadcrumbs,
   SEOPageFAQ,
 } from "@/components/seo/SEOPageLayout";
 
 export const metadata: Metadata = {
-  title: "Referral Program for Therapists, Coaches & Counsellors | Opinion DNA",
+  // Absolute: the root template would append a second "| Opinion DNA®".
+  title: { absolute: "Referral Program for Therapists and Coaches | Opinion DNA®" },
   description:
     "Partner with Opinion DNA to offer your clients a 48-dimension psychographic assessment. Commission-based referrals and bulk pricing for therapists, coaches, and counsellors.",
   alternates: { canonical: "https://www.opiniondna.com/referrals" },
   openGraph: {
-    title: "Referral Program for Therapists, Coaches & Counsellors | Opinion DNA",
+    title: "Referral Program for Therapists and Coaches | Opinion DNA®",
     description:
       "Partner with Opinion DNA. Commission-based referrals and bulk pricing for therapists, coaches, and counsellors.",
     url: "https://www.opiniondna.com/referrals",
+    images: ROOT_OG_IMAGES,
   },
+  twitter: { card: "summary_large_image", images: ROOT_TWITTER_IMAGES },
 };
 
 const faq = [

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ROOT_OG_IMAGES, ROOT_TWITTER_IMAGES } from "@/lib/seo/share-images";
 import Link from "next/link";
 import Image from "next/image";
 import SEOPageLayout, {
@@ -17,7 +18,9 @@ export const metadata: Metadata = {
     description:
       "Explore the research behind Opinion DNA. By Turi Munthe, published by Penguin.",
     url: "https://www.opiniondna.com/book",
+    images: ROOT_OG_IMAGES,
   },
+  twitter: { card: "summary_large_image", images: ROOT_TWITTER_IMAGES },
 };
 
 const faq = [

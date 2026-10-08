@@ -17,6 +17,10 @@ Unlike MBTI, Big Five, or Enneagram tests, Opinion DNA measures values and meta-
 ## Learn
 
 - [The Book](https://www.opiniondna.com/book): "Why We Think What We Think" by Turi Munthe (Penguin)
+- [The 48 Dimensions](https://www.opiniondna.com/dimensions): A page for every dimension Opinion DNA measures
+- [Methodology](https://www.opiniondna.com/methodology): How the assessment was built and how scores work
+- [The 48-Dimension Personality Test](https://www.opiniondna.com/tests/48-dimension-personality-test): All 48 dimensions, listed and grouped by layer
+- [DNA Personality Test](https://www.opiniondna.com/tests/dna-personality-test): What "DNA" means here (a psychological metaphor, not a genetic test)
 - [Test Guides](https://www.opiniondna.com/tests): Guides to personality, values, and thinking-style tests
 - [Use Cases](https://www.opiniondna.com/for): Opinion DNA for personal growth, relationships, careers, and more
 - [Comparisons](https://www.opiniondna.com/vs): Opinion DNA vs MBTI, Big Five, Enneagram, and other assessments

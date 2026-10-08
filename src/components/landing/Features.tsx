@@ -1,3 +1,4 @@
+import Link from "next/link";
 import AnimateIn from "@/components/ui/AnimateIn";
 
 const features = [
@@ -8,8 +9,15 @@ const features = [
     colorLight: "#00B92210",
     description:
       "Deep traits that determine how you engage with the world. Biologically embedded and remarkably stable over a lifetime.",
-    elements:
-      "Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism, and the Dark Triad",
+    anchor: "personality",
+    elements: [
+      { name: "Openness", slug: "openness" },
+      { name: "Conscientiousness", slug: "conscientiousness" },
+      { name: "Extraversion", slug: "extraversion" },
+      { name: "Agreeableness", slug: "agreeableness" },
+      { name: "Neuroticism", slug: "neuroticism" },
+      { name: "Narcissism", slug: "narcissism" },
+    ],
   },
   {
     dimension: "Values",
@@ -18,8 +26,15 @@ const features = [
     colorLight: "#0054FF10",
     description:
       "Your motivational forces: beliefs animated by emotion that guide your decisions. Generally stable but shaped by culture and experience.",
-    elements:
-      "Moral Foundations, Cooperative Virtues, Personal Values, and Social Orientation",
+    anchor: "values",
+    elements: [
+      { name: "Care", slug: "care" },
+      { name: "Fairness", slug: "fairness" },
+      { name: "Loyalty", slug: "loyalty" },
+      { name: "Self-Direction", slug: "self-direction" },
+      { name: "Achievement", slug: "achievement" },
+      { name: "Tradition", slug: "tradition" },
+    ],
   },
   {
     dimension: "Meta-Thinking",
@@ -28,8 +43,14 @@ const features = [
     colorLight: "#8A00FF10",
     description:
       "How your mind naturally works: where it rests, what it tends toward, the distinctive features of your mental processing.",
-    elements:
-      "Dogmatism, Need for Cognition, Intellectual Humility, Primal World Beliefs, and more",
+    anchor: "meta-thinking",
+    elements: [
+      { name: "Dogmatism", slug: "dogmatism" },
+      { name: "Need for Cognition", slug: "need-for-cognition" },
+      { name: "Intellectual Humility", slug: "intellectual-humility" },
+      { name: "Intolerance for Uncertainty", slug: "intolerance-for-uncertainty" },
+      { name: "Just World", slug: "just-world-belief" },
+    ],
   },
 ];
 
@@ -80,7 +101,26 @@ export default function Features() {
               <p className="text-foreground leading-relaxed mb-4">
                 {feature.description}
               </p>
-              <p className="text-sm text-muted">{feature.elements}</p>
+              <p className="text-sm text-muted">
+                {feature.elements.map((el, j) => (
+                  <span key={el.slug}>
+                    {j > 0 && ", "}
+                    <Link
+                      href={`/dimensions/${el.slug}`}
+                      className="hover:text-primary hover:underline transition-colors"
+                    >
+                      {el.name}
+                    </Link>
+                  </span>
+                ))}
+                {", "}
+                <Link
+                  href={`/dimensions#${feature.anchor}`}
+                  className="text-primary hover:underline"
+                >
+                  all {feature.count} &rarr;
+                </Link>
+              </p>
             </div>
           </AnimateIn>
         ))}

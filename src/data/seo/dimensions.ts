@@ -25,20 +25,20 @@ export const DIMENSION_LAYERS = [
     label: "Personality",
     color: "#00B922",
     blurb:
-      "The stable traits psychology measures best — the Big Five, the Dark Triad, emotional regulation, and life satisfaction.",
+      "The stable traits psychology measures best: the Big Five, the Dark Triad, emotional regulation, and life satisfaction.",
   },
   {
     key: "values" as const,
     label: "Values",
     color: "#0054FF",
     blurb:
-      "What you hold to matter — moral foundations, cooperative virtues, personal values, and social orientation.",
+      "What you hold to matter: moral foundations, cooperative virtues, personal values, and social orientation.",
   },
   {
     key: "meta-thinking" as const,
     label: "Meta-Thinking",
     color: "#8A00FF",
     blurb:
-      "How you form and hold beliefs — not what you think, but how: dogmatism, intellectual humility, uncertainty tolerance, and your primal world beliefs.",
+      "How you form and hold beliefs, whatever the beliefs are: dogmatism, intellectual humility, uncertainty tolerance, and your primal world beliefs.",
   },
 ];

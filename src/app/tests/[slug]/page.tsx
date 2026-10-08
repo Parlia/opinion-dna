@@ -5,10 +5,13 @@ import { keywordPages } from "@/data/seo/keywords";
 import SEOPageLayout, {
   articleJsonLd,
   Breadcrumbs,
+  ContentSections,
   DimensionBadges,
+  DimensionLinks,
   SEOPageCTA,
   SEOPageFAQ,
 } from "@/components/seo/SEOPageLayout";
+import DimensionDirectory from "@/components/seo/DimensionDirectory";
 
 export function generateStaticParams() {
   return keywordPages.map((p) => ({ slug: p.slug }));
@@ -24,10 +27,14 @@ export async function generateMetadata({
   if (!page) return {};
 
   return {
-    title: page.metaTitle,
+    title: page.seoTitle ? { absolute: page.seoTitle } : page.metaTitle,
     description: page.description,
     alternates: { canonical: `https://www.opiniondna.com/tests/${slug}` },
-    openGraph: { title: page.metaTitle, description: page.description, url: `https://www.opiniondna.com/tests/${slug}` },
+    openGraph: {
+      title: page.seoTitle ?? page.metaTitle,
+      description: page.description,
+      url: `https://www.opiniondna.com/tests/${slug}`,
+    },
   };
 }
 
@@ -48,7 +55,7 @@ export default async function KeywordPage({
     <SEOPageLayout
       jsonLd={[
         articleJsonLd({
-          headline: page.metaTitle,
+          headline: page.seoTitle ?? page.metaTitle,
           description: page.description,
           path: `/tests/${slug}`,
         }),
@@ -70,14 +77,9 @@ export default async function KeywordPage({
       </p>
       <DimensionBadges />
 
-      {page.sections.map((section, i) => (
-        <section key={i} className="mt-12">
-          <h2 className="text-2xl md:text-3xl text-black mb-4">
-            {section.heading}
-          </h2>
-          <p className="text-foreground leading-relaxed">{section.content}</p>
-        </section>
-      ))}
+      <ContentSections sections={page.sections} />
+
+      {page.dimensionDirectory && <DimensionDirectory />}
 
       {page.comparisonNote && (
         <div className="mt-12 bg-primary/5 border border-primary/20 rounded-xl p-6">
@@ -135,8 +137,14 @@ export default async function KeywordPage({
         </div>
       </section>
 
+      {page.relatedDimensions && <DimensionLinks slugs={page.relatedDimensions} />}
+
       <SEOPageFAQ items={page.faq} pageUrl={`/tests/${slug}`} />
-      <SEOPageCTA />
+      {page.ctaHref ? (
+        <SEOPageCTA href={page.ctaHref} label="Take the Full Assessment" />
+      ) : (
+        <SEOPageCTA />
+      )}
     </SEOPageLayout>
   );
 }

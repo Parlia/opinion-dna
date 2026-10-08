@@ -101,11 +101,12 @@ export function UsersTable({ rows, currentUserId }: { rows: AdminUserRow[]; curr
       <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
         <div className="relative">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[980px]">
+            <table className="w-full text-sm min-w-[1100px]">
               <thead className="bg-[var(--beige-light)]">
                 <tr className="text-xs uppercase tracking-wide text-[var(--muted)]">
                   <th className="px-4 py-2 text-left font-medium">User</th>
                   <th className="px-4 py-2 text-left font-medium">Channel</th>
+                  <th className="px-4 py-2 text-left font-medium">Landing</th>
                   <th className="px-4 py-2 text-left font-medium">Joined</th>
                   <th className="px-4 py-2 text-center font-medium">Quiz</th>
                   <th className="px-4 py-2 text-center font-medium">Paid</th>
@@ -135,6 +136,12 @@ export function UsersTable({ rows, currentUserId }: { rows: AdminUserRow[]; curr
                         <div className="text-xs text-[var(--muted)]">{u.email}</div>
                       </td>
                       <td className="px-4 py-3 text-xs text-[var(--muted)]">{u.channel}</td>
+                      <td
+                        className="px-4 py-3 text-xs text-[var(--muted)] max-w-[220px] truncate"
+                        title={u.landingPath ?? undefined}
+                      >
+                        {u.landingPath ?? "—"}
+                      </td>
                       <td className="px-4 py-3 text-xs text-[var(--muted)] whitespace-nowrap">
                         {new Date(u.createdAt).toLocaleDateString()}
                       </td>
@@ -201,7 +208,9 @@ export function UsersTable({ rows, currentUserId }: { rows: AdminUserRow[]; curr
       <p className="mt-3 text-xs text-[var(--muted)]">
         Quiz = completed the assessment. Paid = real Stripe charge for the personal report. Report =
         personal report generation status. <strong>Flag</strong> marks internal/test/founder accounts,
-        which are excluded from every headline number above. Channel is unknown until UTM capture is wired.
+        which are excluded from every headline number above. Channel and Landing are the first touch
+        captured at signup (Landing = first public page of that visit); both are blank/unknown for
+        users who signed up before capture was wired.
       </p>
     </section>
   );

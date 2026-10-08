@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { competitors } from "@/data/seo/competitors";
+import { alternativePages, competitors, headToHeadPages } from "@/data/seo/competitors";
 import SEOPageLayout, {
   Breadcrumbs,
   DimensionBadges,
@@ -51,6 +51,28 @@ export default function CompareHubPage() {
         ))}
       </div>
 
+      {headToHeadPages.length > 0 && (
+        <section className="mt-16">
+          <h2 className="text-2xl md:text-3xl text-black mb-6">
+            Other tests compared
+          </h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {headToHeadPages.map((h) => (
+              <Link
+                key={h.slug}
+                href={`/vs/${h.slug}`}
+                className="bg-white rounded-xl border border-border p-6 hover:border-primary hover:shadow-md transition-all group"
+              >
+                <h3 className="text-lg text-black group-hover:text-primary transition-colors">
+                  {h.title}
+                </h3>
+                <p className="mt-2 text-sm text-muted line-clamp-2">{h.description}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="mt-16">
         <h2 className="text-2xl md:text-3xl text-black mb-6">
           Why Opinion DNA is different
@@ -91,15 +113,15 @@ export default function CompareHubPage() {
       <section className="mt-12">
         <h3 className="text-lg text-muted mb-3">Looking for alternatives?</h3>
         <div className="flex flex-wrap gap-2">
-          <Link href="/alternatives/16personalities-alternatives" className="text-sm px-3 py-1.5 bg-white border border-border rounded-full hover:border-primary hover:text-primary transition-colors">
-            16Personalities alternatives
-          </Link>
-          <Link href="/alternatives/myers-briggs-alternatives" className="text-sm px-3 py-1.5 bg-white border border-border rounded-full hover:border-primary hover:text-primary transition-colors">
-            MBTI alternatives
-          </Link>
-          <Link href="/alternatives/enneagram-alternatives" className="text-sm px-3 py-1.5 bg-white border border-border rounded-full hover:border-primary hover:text-primary transition-colors">
-            Enneagram alternatives
-          </Link>
+          {alternativePages.map((a) => (
+            <Link
+              key={a.slug}
+              href={`/alternatives/${a.slug}`}
+              className="text-sm px-3 py-1.5 bg-white border border-border rounded-full hover:border-primary hover:text-primary transition-colors"
+            >
+              {a.competitorName} alternatives
+            </Link>
+          ))}
         </div>
       </section>
 

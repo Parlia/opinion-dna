@@ -1,110 +1,65 @@
 import type { MetadataRoute } from "next";
-import { competitors, alternativePages } from "@/data/seo/competitors";
+import { competitors, alternativePages, headToHeadPages } from "@/data/seo/competitors";
 import { useCases } from "@/data/seo/use-cases";
 import { keywordPages } from "@/data/seo/keywords";
 import { dimensionPages } from "@/data/seo/dimensions";
+import lastmod from "@/data/seo/lastmod.json";
+
+const BASE_URL = "https://www.opiniondna.com";
+const LASTMOD = lastmod as Record<string, string>;
+
+/**
+ * <lastmod> is each page's real last content change, from the git-derived
+ * manifest (scripts/gen-sitemap-lastmod.mjs, `npm run seo:lastmod`). A route
+ * missing from the manifest gets no lastmod rather than a made-up one: a
+ * build-time `new Date()` on every URL tells Google nothing.
+ *
+ * Auth pages (/login, /signup) are deliberately absent: they're noindex.
+ */
+function entry(
+  path: string,
+  changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"],
+  priority: number
+): MetadataRoute.Sitemap[number] {
+  const date = LASTMOD[path === "" ? "/" : path];
+  return {
+    url: `${BASE_URL}${path}`,
+    ...(date ? { lastModified: date } : {}),
+    changeFrequency,
+    priority,
+  };
+}
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://www.opiniondna.com";
+  return [
+    entry("", "weekly", 1),
+    entry("/privacy", "yearly", 0.3),
+    entry("/terms", "yearly", 0.3),
 
-  const staticPages: MetadataRoute.Sitemap = [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/login`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    {
-      url: `${baseUrl}/signup`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    {
-      url: `${baseUrl}/privacy`,
-      lastModified: new Date(),
-      changeFrequency: "yearly",
-      priority: 0.3,
-    },
-    {
-      url: `${baseUrl}/terms`,
-      lastModified: new Date(),
-      changeFrequency: "yearly",
-      priority: 0.3,
-    },
+    // Product & marketing landing pages
+    ...[
+      "/personal-assessment",
+      "/couples",
+      "/co-founders",
+      "/teams",
+      "/friends",
+      "/book",
+      "/referrals",
+    ].map((p) => entry(p, "monthly", 0.8)),
+
+    // Hub pages
+    entry("/vs", "weekly", 0.8),
+    entry("/alternatives", "weekly", 0.8),
+    entry("/for", "weekly", 0.8),
+    entry("/tests", "weekly", 0.8),
+    entry("/dimensions", "weekly", 0.8),
+    entry("/methodology", "monthly", 0.7),
+
+    ...dimensionPages.map((d) => entry(`/dimensions/${d.slug}`, "monthly", 0.7)),
+    ...competitors.map((c) => entry(`/vs/${c.slug}`, "monthly", 0.7)),
+    ...headToHeadPages.map((h) => entry(`/vs/${h.slug}`, "monthly", 0.7)),
+    ...alternativePages.map((a) => entry(`/alternatives/${a.slug}`, "monthly", 0.7)),
+    ...useCases.map((u) => entry(`/for/${u.slug}`, "monthly", 0.7)),
+    ...keywordPages.map((p) => entry(`/tests/${p.slug}`, "monthly", 0.7)),
   ];
-
-  // Product & marketing landing pages
-  const productPages: MetadataRoute.Sitemap = [
-    "/personal-assessment",
-    "/couples",
-    "/co-founders",
-    "/teams",
-    "/friends",
-    "/book",
-    "/referrals",
-  ].map((path) => ({
-    url: `${baseUrl}${path}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.8,
-  }));
-
-  // Hub pages
-  const hubPages: MetadataRoute.Sitemap = [
-    { url: `${baseUrl}/vs`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
-    { url: `${baseUrl}/alternatives`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
-    { url: `${baseUrl}/for`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
-    { url: `${baseUrl}/tests`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
-    { url: `${baseUrl}/dimensions`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
-    { url: `${baseUrl}/methodology`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
-  ];
-
-  // Dimension glossary pages
-  const dimPages: MetadataRoute.Sitemap = dimensionPages.map((d) => ({
-    url: `${baseUrl}/dimensions/${d.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.7,
-  }));
-
-  // Comparison pages
-  const comparePages: MetadataRoute.Sitemap = competitors.map((c) => ({
-    url: `${baseUrl}/vs/${c.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.7,
-  }));
-
-  // Alternative pages
-  const altPages: MetadataRoute.Sitemap = alternativePages.map((a) => ({
-    url: `${baseUrl}/alternatives/${a.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.7,
-  }));
-
-  // Use case pages
-  const useCasePages: MetadataRoute.Sitemap = useCases.map((u) => ({
-    url: `${baseUrl}/for/${u.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.7,
-  }));
-
-  // Keyword landing pages
-  const kwPages: MetadataRoute.Sitemap = keywordPages.map((p) => ({
-    url: `${baseUrl}/tests/${p.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.7,
-  }));
-
-  return [...staticPages, ...productPages, ...hubPages, ...dimPages, ...comparePages, ...altPages, ...useCasePages, ...kwPages];
 }

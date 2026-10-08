@@ -1,6 +1,9 @@
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import Prose, { DataTable, stripProse } from "@/components/seo/Prose";
+import type { ContentSection } from "@/data/seo/content-types";
+import { getDimensionPage } from "@/data/seo/dimensions";
 
 // Safe: JSON-LD data is from hardcoded constants in our data files, not user input
 function JsonLd({ data }: { data: Record<string, unknown> }) {
@@ -83,22 +86,28 @@ export function Breadcrumbs({ items }: { items: { label: string; href?: string }
   );
 }
 
-export function SEOPageCTA() {
+export function SEOPageCTA({
+  href = "/signup",
+  label = "Start My Assessment \u2014 $47",
+}: {
+  href?: string;
+  label?: string;
+} = {}) {
   return (
     <section className="mt-16 bg-white rounded-2xl border border-border p-8 md:p-12 text-center">
       <h2 className="text-2xl md:text-3xl text-black">
         Ready to discover your 48-dimension profile?
       </h2>
       <p className="mt-4 text-muted max-w-xl mx-auto">
-        Personality, values, and meta-thinking — mapped across 48 dimensions with
+        Personality, values, and meta-thinking, mapped across 48 dimensions with
         an AI-generated personal report. Built with 60+ experts from Oxford,
         Cambridge, NYU, and UPenn.
       </p>
       <Link
-        href="/signup"
+        href={href}
         className="inline-flex items-center justify-center mt-8 px-10 py-4 bg-primary text-white font-bold rounded-lg text-lg hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 transition-all"
       >
-        Start My Assessment &mdash; $47
+        {label}
       </Link>
       <p className="mt-3 text-sm text-muted">
         One-time purchase. Lifetime access. 30-day money-back guarantee.
@@ -117,7 +126,7 @@ export function SEOPageFAQ({ items, pageUrl }: { items: { question: string; answ
       name: item.question,
       acceptedAnswer: {
         "@type": "Answer",
-        text: item.answer,
+        text: stripProse(item.answer),
       },
     })),
   };
@@ -147,10 +156,64 @@ export function SEOPageFAQ({ items, pageUrl }: { items: { question: string; answ
               </svg>
             </summary>
             <div className="px-6 pb-4">
-              <p className="text-foreground leading-relaxed">{item.answer}</p>
+              <Prose text={item.answer} />
             </div>
           </details>
         ))}
+      </div>
+    </section>
+  );
+}
+
+/** Long-form body sections: h2 + prose (+ optional table). */
+export function ContentSections({ sections }: { sections: ContentSection[] }) {
+  return (
+    <>
+      {sections.map((section, i) => (
+        <section key={i} className="mt-12">
+          <h2 className="text-2xl md:text-3xl text-black mb-4">{section.heading}</h2>
+          <Prose text={section.content} />
+          {section.table && <DataTable table={section.table} />}
+        </section>
+      ))}
+    </>
+  );
+}
+
+/**
+ * Chip block linking to /dimensions/* pages, by slug. Unknown slugs are
+ * dropped (and fail the seo-content test), so a typo never renders a 404 link.
+ */
+export function DimensionLinks({
+  slugs,
+  heading = "Dimensions on this page",
+}: {
+  slugs: string[];
+  heading?: string;
+}) {
+  const pages = slugs
+    .map((s) => getDimensionPage(s))
+    .filter((d): d is NonNullable<typeof d> => Boolean(d));
+  if (pages.length === 0) return null;
+  return (
+    <section className="mt-12">
+      <h3 className="text-lg text-muted mb-3">{heading}</h3>
+      <div className="flex flex-wrap gap-2">
+        {pages.map((d) => (
+          <Link
+            key={d.slug}
+            href={`/dimensions/${d.slug}`}
+            className="text-sm px-3 py-1.5 bg-white border border-border rounded-full hover:border-primary hover:text-primary transition-colors"
+          >
+            {d.name}
+          </Link>
+        ))}
+        <Link
+          href="/dimensions"
+          className="text-sm px-3 py-1.5 bg-white border border-border rounded-full hover:border-primary hover:text-primary transition-colors"
+        >
+          All 48 dimensions &rarr;
+        </Link>
       </div>
     </section>
   );

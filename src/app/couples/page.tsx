@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ROOT_OG_IMAGES, ROOT_TWITTER_IMAGES } from "@/lib/seo/share-images";
 import SEOPageLayout, {
   Breadcrumbs,
   DimensionBadges,
@@ -8,16 +9,19 @@ import SEOPageLayout, {
 } from "@/components/seo/SEOPageLayout";
 
 export const metadata: Metadata = {
-  title: "Couples Report | Opinion DNA",
+  // Absolute: the root template would append a second "| Opinion DNA®".
+  title: { absolute: "Couples Personality and Values Report | Opinion DNA®" },
   description:
     "Compare your Opinion DNA with your partner across 48 dimensions of personality, values, and meta-thinking. Understand where you align, where you differ, and why it matters.",
   alternates: { canonical: "https://www.opiniondna.com/couples" },
   openGraph: {
-    title: "Couples Report | Opinion DNA",
+    title: "Couples Personality and Values Report | Opinion DNA®",
     description:
       "Compare your Opinion DNA with your partner across 48 dimensions. Understand alignment, differences, and how to grow together.",
     url: "https://www.opiniondna.com/couples",
+    images: ROOT_OG_IMAGES,
   },
+  twitter: { card: "summary_large_image", images: ROOT_TWITTER_IMAGES },
 };
 
 const faq = [

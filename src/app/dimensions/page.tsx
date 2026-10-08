@@ -36,7 +36,7 @@ export default function DimensionsHubPage() {
         const categories = [...new Set(layerElements.map((e) => e.category))];
 
         return (
-          <section key={layer.key} className="mt-14">
+          <section key={layer.key} id={layer.key} className="mt-14 scroll-mt-24">
             <div className="flex items-center gap-3 mb-2">
               <span
                 className="w-3 h-3 rounded-full"

@@ -201,6 +201,53 @@ export default async function AdminDashboardPage() {
         )}
       </section>
 
+      {/* Landing pages (first touch, all time) */}
+      {m.landing_pages.tracked && m.landing_pages.rows.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">
+            Landing pages
+          </h2>
+          <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[640px]">
+                <thead className="bg-[var(--beige-light)]">
+                  <tr className="text-xs uppercase tracking-wide text-[var(--muted)]">
+                    <th className="px-4 py-2 text-left font-medium">First landing path</th>
+                    <th className="px-4 py-2 text-right font-medium">Signups (MTD)</th>
+                    <th className="px-4 py-2 text-right font-medium">Signups (all)</th>
+                    <th className="px-4 py-2 text-right font-medium">Sales (all)</th>
+                    <th className="px-4 py-2 text-right font-medium">Revenue (all)</th>
+                    <th className="px-4 py-2 text-left font-medium">Channels</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {m.landing_pages.rows.map((r) => (
+                    <tr key={r.path}>
+                      <td className="px-4 py-2 text-[var(--foreground)] max-w-[280px] truncate" title={r.path}>
+                        {r.path}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums">{r.signups_mtd}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{r.signups_all_time}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{r.sales_all_time}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{usdFmt(r.revenue_usd_all_time)}</td>
+                      <td className="px-4 py-2 text-xs text-[var(--muted)]">
+                        {Object.entries(r.channels)
+                          .map(([c, n]) => `${c} ${n}`)
+                          .join(", ")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            Real users only. {m.landing_pages.not_captured_users} signed up before landing capture
+            (or capture missed) and are not shown.
+          </p>
+        </section>
+      )}
+
       {/* Product mix & AOV */}
       <section className="mb-8">
         <h2 className="text-sm font-medium text-[var(--muted)] uppercase tracking-wide mb-3">
@@ -295,13 +342,14 @@ export default async function AdminDashboardPage() {
           <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden">
             <div className="relative">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[640px]">
+                <table className="w-full text-sm min-w-[760px]">
                   <thead className="bg-[var(--beige-light)]">
                     <tr className="text-xs uppercase tracking-wide text-[var(--muted)]">
                       <th className="px-4 py-2 text-left font-medium">When</th>
                       <th className="px-4 py-2 text-left font-medium">User</th>
                       <th className="px-4 py-2 text-left font-medium">Product</th>
                       <th className="px-4 py-2 text-left font-medium">Channel</th>
+                      <th className="px-4 py-2 text-left font-medium">Landing</th>
                       <th className="px-4 py-2 text-right font-medium">Amount</th>
                     </tr>
                   </thead>
@@ -316,6 +364,12 @@ export default async function AdminDashboardPage() {
                           {PRODUCT_LABEL[p.type] ?? p.type}
                         </td>
                         <td className="px-4 py-2 text-xs text-[var(--muted)]">{p.channel}</td>
+                        <td
+                          className="px-4 py-2 text-xs text-[var(--muted)] max-w-[220px] truncate"
+                          title={p.landingPath ?? undefined}
+                        >
+                          {p.landingPath ?? "—"}
+                        </td>
                         <td className="px-4 py-2 text-right font-mono tabular-nums">
                           {usdFmt(p.amountCents / 100)}
                         </td>

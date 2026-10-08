@@ -1,7 +1,32 @@
 import type { NextConfig } from "next";
 
+// Old URLs Googlebot still requests. The retired Webflow site on opinion-dna.com
+// had /diagnostic and /complete-diagnostic (archived Feb 2026); middleware
+// 308s that host to www.opiniondna.com with the path intact, which then 404'd.
+// The root-level *-alternatives paths cover links and guesses that drop the
+// /alternatives/ segment.
+const ALTERNATIVE_SLUGS = [
+  "16personalities-alternatives",
+  "myers-briggs-alternatives",
+  "enneagram-alternatives",
+  "big-five-alternatives",
+  "truity-alternatives",
+  "disc-alternatives",
+];
+
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@sparticuz/chromium"],
+  async redirects() {
+    return [
+      { source: "/diagnostic", destination: "/personal-assessment", statusCode: 301 },
+      { source: "/complete-diagnostic", destination: "/personal-assessment", statusCode: 301 },
+      ...ALTERNATIVE_SLUGS.map((slug) => ({
+        source: `/${slug}`,
+        destination: `/alternatives/${slug}`,
+        statusCode: 301 as const,
+      })),
+    ];
+  },
   async headers() {
     return [
       {

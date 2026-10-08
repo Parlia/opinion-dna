@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { ATTR_COOKIE } from "@/lib/attribution";
+import { ATTR_COOKIE, isAppRoute, isRoundTripReferrer } from "@/lib/attribution";
 
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
@@ -15,11 +15,17 @@ const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
  * source/referrer (a prior "direct" visit) and this load does carry a signal,
  * overwrite it; otherwise leave the existing value alone.
  *
+ * Ignored entirely (never create or upgrade the cookie):
+ * - loads arriving from our own round trips (Google sign-in, Stripe checkout,
+ *   Turnstile), which are not acquisition, and
+ * - signed-in app routes (/dashboard, /quiz, ...), which are never a landing.
+ *
  * Renders nothing and never throws — attribution must not affect the page.
  */
 export function AttributionCapture() {
   useEffect(() => {
     try {
+      if (isAppRoute(window.location.pathname)) return;
       const params = new URLSearchParams(window.location.search);
       const utmSource = (params.get("utm_source") || "").slice(0, 120);
       const utmMedium = (params.get("utm_medium") || "").slice(0, 120);
@@ -28,11 +34,19 @@ export function AttributionCapture() {
       let refHost = "";
       if (document.referrer) {
         try {
-          refHost = new URL(document.referrer).hostname.toLowerCase();
+          const ref = new URL(document.referrer);
+          refHost = ref.hostname.toLowerCase();
+          // Android apps send android-app://<package>/<path>; the path is what
+          // tells a Google app search result apart from Discover.
+          if (ref.protocol === "android-app:") {
+            refHost = (ref.hostname + ref.pathname).toLowerCase().replace(/\/+$/, "");
+          }
         } catch {
           /* malformed referrer — ignore */
         }
       }
+      // Back from Google sign-in or Stripe: our own flow, not a new touch.
+      if (refHost && isRoundTripReferrer(refHost)) return;
       const internalRef = !refHost || refHost.endsWith("opiniondna.com");
       const candidateHasSignal = !!utmSource || (!!refHost && !internalRef);
 

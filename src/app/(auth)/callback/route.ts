@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { safeRedirectPath } from "@/lib/auth/safe-redirect";
 import { deriveFirstName } from "@/lib/auth/display-name";
-import { ATTR_COOKIE, parseAttributionCookie } from "@/lib/attribution";
+import { ATTR_COOKIE, isFreshAccount, parseAttributionCookie } from "@/lib/attribution";
 import {
   sendInviteAcceptedEmail,
   sendWelcomeEmail,
@@ -113,9 +113,12 @@ export async function GET(request: Request) {
 
         // Persist first-touch channel attribution captured client-side (cookie)
         // onto the profile, exactly once (landing_path acts as the written-once
-        // sentinel). Best-effort: it must never block the auth redirect, and it
-        // tolerates migration 021 not being applied yet (the select errors → we
-        // skip and keep the cookie for a later attempt).
+        // sentinel), and only for an account created in the last 24h: a later
+        // login's cookie on an older account is not that account's first touch.
+        // The cookie is cleared either way once the column exists. Best-effort:
+        // it must never block the auth redirect, and it tolerates migration 021
+        // not being applied yet (the select errors → we skip and keep the cookie
+        // for a later attempt).
         try {
           const cookieHeader = request.headers.get("cookie") || "";
           const match = cookieHeader
@@ -127,12 +130,16 @@ export async function GET(request: Request) {
           if (attr) {
             const sel = await admin
               .from("profiles")
-              .select("landing_path")
+              .select("landing_path, created_at")
               .eq("id", user.id)
               .single();
             if (!sel.error) {
               attrHandled = true; // column exists — clear the cookie below
-              if (sel.data && sel.data.landing_path == null) {
+              if (
+                sel.data &&
+                sel.data.landing_path == null &&
+                isFreshAccount(sel.data.created_at)
+              ) {
                 const update: Record<string, string> = {};
                 const put = (k: string, v?: string) => {
                   if (v && typeof v === "string") update[k] = v.slice(0, 200);

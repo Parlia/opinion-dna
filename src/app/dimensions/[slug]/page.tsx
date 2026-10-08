@@ -46,9 +46,20 @@ export default async function DimensionPage({
 
   const element = ELEMENTS[page.elementIndex];
   const layer = DIMENSION_LAYERS.find((l) => l.key === element.dimension)!;
+  // Hand-picked related dimensions first, then same-category siblings, up to 5.
   const relatedPages = page.related
     .map((s) => getDimensionPage(s))
     .filter((d): d is NonNullable<typeof d> => Boolean(d));
+  for (const d of dimensionPages) {
+    if (relatedPages.length >= 5) break;
+    if (
+      d.slug !== page.slug &&
+      ELEMENTS[d.elementIndex].category === element.category &&
+      !relatedPages.some((r) => r.slug === d.slug)
+    ) {
+      relatedPages.push(d);
+    }
+  }
 
   return (
     <SEOPageLayout
@@ -73,7 +84,8 @@ export default async function DimensionPage({
           className="inline-flex items-center gap-2 text-sm text-muted bg-white px-3 py-1.5 rounded-full border border-border"
         >
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: layer.color }} />
-          {layer.label} &middot; {element.category}
+          {layer.label}
+          {element.category !== layer.label && <> &middot; {element.category}</>}
         </span>
       </div>
 
@@ -134,33 +146,56 @@ export default async function DimensionPage({
           continuous 0&ndash;100 score &mdash; not a type or a label &mdash;
           benchmarked against the population average, and your AI-generated
           personal report explains what your specific combination of scores
-          means for your life, relationships, and career.
+          means for your life, relationships, and career.{" "}
+          <Link href="/personal-assessment" className="text-primary hover:underline">
+            See what the full assessment includes
+          </Link>
+          .
         </p>
       </section>
 
-      <section className="mt-12">
-        <h3 className="text-lg text-muted mb-3">Related dimensions</h3>
-        <div className="flex flex-wrap gap-2">
-          {relatedPages.map((r) => (
-            <Link
-              key={r.slug}
-              href={`/dimensions/${r.slug}`}
-              className="text-sm px-3 py-1.5 bg-white border border-border rounded-full hover:border-primary hover:text-primary transition-colors"
-            >
-              {r.name}
-            </Link>
-          ))}
-          <Link
-            href="/dimensions"
-            className="text-sm px-3 py-1.5 bg-white border border-border rounded-full hover:border-primary hover:text-primary transition-colors"
-          >
+      <section className="mt-16">
+        <h2 className="text-2xl md:text-3xl text-black mb-2">Related dimensions</h2>
+        <p className="text-muted mb-6">
+          {page.name} rarely acts alone. These dimensions shape how it plays out.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {relatedPages.map((r) => {
+            const rel = ELEMENTS[r.elementIndex];
+            const relLayer = DIMENSION_LAYERS.find((l) => l.key === rel.dimension)!;
+            return (
+              <Link
+                key={r.slug}
+                href={`/dimensions/${r.slug}`}
+                className="bg-white rounded-xl border border-border p-5 hover:border-primary hover:shadow-md transition-all group"
+              >
+                <span className="flex items-center gap-2 text-xs text-muted">
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: relLayer.color }}
+                  />
+                  {relLayer.label}
+                  {rel.category !== relLayer.label && <> &middot; {rel.category}</>}
+                </span>
+                <span className="mt-1.5 block text-base font-semibold text-black group-hover:text-primary transition-colors">
+                  {r.name}
+                </span>
+                <span className="mt-1 block text-sm text-muted line-clamp-2">
+                  {rel.tooltip}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+        <p className="mt-4">
+          <Link href="/dimensions" className="text-primary hover:underline">
             All 48 dimensions &rarr;
           </Link>
-        </div>
+        </p>
       </section>
 
       <SEOPageFAQ items={page.faq} pageUrl={`/dimensions/${slug}`} />
-      <SEOPageCTA />
+      <SEOPageCTA href="/personal-assessment" label="Take the Full Assessment" />
     </SEOPageLayout>
   );
 }

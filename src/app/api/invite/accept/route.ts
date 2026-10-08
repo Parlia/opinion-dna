@@ -17,8 +17,13 @@ export async function GET(request: NextRequest) {
     // Encode the whole next URL so the inner ?token= doesn't get parsed as a
     // top-level query param by the signup page (which was silently dropping it,
     // leaving the invite stuck at status=pending after the user finished auth).
+    // utm_* tags the invitee's first touch as "invite": without them, a click
+    // from Gmail's web link redirector arrives with a www.google.com referrer
+    // and would be counted as Google search.
     const next = encodeURIComponent(`/api/invite/accept?token=${token}`);
-    return NextResponse.redirect(new URL(`/signup?next=${next}`, request.url));
+    return NextResponse.redirect(
+      new URL(`/signup?next=${next}&utm_source=invite&utm_medium=email`, request.url)
+    );
   }
 
   // Find the invite

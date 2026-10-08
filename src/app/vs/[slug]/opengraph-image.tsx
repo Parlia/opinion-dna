@@ -1,4 +1,4 @@
-import { competitors } from "@/data/seo/competitors";
+import { competitors, headToHeadPages } from "@/data/seo/competitors";
 import { renderSeoOgImage, OG_SIZE } from "@/app/og-image-template";
 
 export const runtime = "edge";
@@ -13,12 +13,13 @@ export default async function OgImage({
 }) {
   const { slug } = await params;
   const competitor = competitors.find((c) => c.slug === slug);
+  const h2h = headToHeadPages.find((h) => h.slug === slug);
 
   return renderSeoOgImage({
     kicker: "Head-to-Head Comparison",
     title: competitor
       ? `Opinion DNA vs ${competitor.shortName}`
-      : "Compare Personality Tests",
+      : h2h?.shortTitle ?? "Compare Personality Tests",
     subtitle: "Which assessment is right for you?",
   });
 }

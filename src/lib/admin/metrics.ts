@@ -123,6 +123,32 @@ export interface AdminMetrics {
       signup_to_paid_rate: number | null;
     }[];
   };
+  /**
+   * First landing path (first public page of the attributed visit), grouped
+   * across REAL users. Forward-looking: users who signed up before capture
+   * (or whose capture missed) are counted in `not_captured`, never guessed.
+   */
+  landing_pages: {
+    tracked: boolean;
+    not_captured_users: number;
+    rows: {
+      path: string;
+      signups_mtd: number;
+      signups_all_time: number;
+      sales_all_time: number;
+      revenue_usd_all_time: number;
+      /** First-touch channel → signup count, for this landing path. */
+      channels: Record<string, number>;
+    }[];
+  };
+  /** Latest real sales with first-touch channel + landing path (no emails). */
+  recent_sales: {
+    created_at: string;
+    product: string;
+    amount_usd: number;
+    channel: string;
+    landing_path: string | null;
+  }[];
   referral_loop: {
     invites_sent_mtd: number;
     invites_accepted_mtd: number;
@@ -147,6 +173,7 @@ export interface AdminUserRow {
   fullName: string | null;
   isInternal: boolean;
   channel: string;
+  landingPath: string | null;
   createdAt: string;
   quizCompleted: boolean;
   personalPaid: boolean;
@@ -583,10 +610,72 @@ export function buildMetrics(raw: AdminRaw, now: Date): AdminMetrics {
   const channels = {
     tracked: raw.hasAttributionColumns,
     note: raw.hasAttributionColumns
-      ? "First-touch attribution (utm_* + external referrer captured at signup). 'unknown' = signed up before capture was wired."
+      ? "First-touch attribution (utm_* + external referrer captured at signup). Google is split by referrer: google-search (www.google.*), gmail, google-oauth (sign-in round trip, legacy rows only), google-other (e.g. the Google Android app). 'unknown' = signed up before capture was wired."
       : "Attribution columns not present — apply migration 021_profile_attribution.sql. All signups shown as unknown until then.",
     rows: channelRows,
   };
+
+  // Landing pages — real users grouped by stored first landing path.
+  const salesByUser = new Map<string, RawPurchase[]>();
+  for (const p of realSales) {
+    const list = salesByUser.get(p.userId) ?? [];
+    list.push(p);
+    salesByUser.set(p.userId, list);
+  }
+  const byPath = new Map<
+    string,
+    { signupsMtd: number; signups: number; sales: number; revenueCents: number; channels: Record<string, number> }
+  >();
+  let notCaptured = 0;
+  for (const u of realUsers) {
+    const path = profileById.get(u.id)?.landingPath;
+    if (!path) {
+      notCaptured += 1;
+      continue;
+    }
+    let e = byPath.get(path);
+    if (!e) {
+      e = { signupsMtd: 0, signups: 0, sales: 0, revenueCents: 0, channels: {} };
+      byPath.set(path, e);
+    }
+    e.signups += 1;
+    if (ms(u.createdAt) >= monthStart) e.signupsMtd += 1;
+    const ch = channelOf(u.id);
+    e.channels[ch] = (e.channels[ch] ?? 0) + 1;
+    for (const p of salesByUser.get(u.id) ?? []) {
+      e.sales += 1;
+      e.revenueCents += p.amountCents;
+    }
+  }
+  const landing_pages = {
+    tracked: raw.hasAttributionColumns,
+    not_captured_users: notCaptured,
+    rows: [...byPath.entries()]
+      .map(([path, e]) => ({
+        path,
+        signups_mtd: e.signupsMtd,
+        signups_all_time: e.signups,
+        sales_all_time: e.sales,
+        revenue_usd_all_time: usd(e.revenueCents),
+        channels: e.channels,
+      }))
+      .sort(
+        (a, b) =>
+          b.revenue_usd_all_time - a.revenue_usd_all_time ||
+          b.signups_all_time - a.signups_all_time ||
+          a.path.localeCompare(b.path)
+      ),
+  };
+  const recent_sales = [...realSales]
+    .sort((a, b) => ms(b.createdAt) - ms(a.createdAt))
+    .slice(0, 12)
+    .map((p) => ({
+      created_at: p.createdAt,
+      product: p.type,
+      amount_usd: usd(p.amountCents),
+      channel: channelOf(p.userId),
+      landing_path: profileById.get(p.userId)?.landingPath ?? null,
+    }));
 
   // Referral / invite loop. Exclude internal senders (founder test invites).
   const realInvites = raw.invites.filter((i) => !isInternal(i.fromUserId));
@@ -654,6 +743,8 @@ export function buildMetrics(raw: AdminRaw, now: Date): AdminMetrics {
     funnel_mtd: funnel.mtd,
     funnel,
     channels,
+    landing_pages,
+    recent_sales,
     referral_loop,
     data_quality,
     history,
@@ -666,6 +757,7 @@ export interface RecentSale {
   type: string;
   amountCents: number;
   channel: string;
+  landingPath: string | null;
 }
 
 /** Recent REAL sales (completed, amount > 0, non-internal), newest first. */
@@ -683,6 +775,7 @@ export function buildRecentRealSales(raw: AdminRaw, limit = 12): RecentSale[] {
       type: p.type,
       amountCents: p.amountCents,
       channel: deriveChannel(profileById.get(p.userId)),
+      landingPath: profileById.get(p.userId)?.landingPath ?? null,
     }));
 }
 
@@ -719,6 +812,7 @@ export function buildUserRows(raw: AdminRaw): AdminUserRow[] {
       fullName: profileById.get(u.id)?.fullName ?? null,
       isInternal: internalIds.has(u.id),
       channel: deriveChannel(profileById.get(u.id)),
+      landingPath: profileById.get(u.id)?.landingPath ?? null,
       createdAt: u.createdAt,
       quizCompleted: scoreByUser.has(u.id),
       personalPaid: !!personalCompleted,

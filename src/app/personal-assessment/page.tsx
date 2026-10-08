@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ROOT_OG_IMAGES, ROOT_TWITTER_IMAGES } from "@/lib/seo/share-images";
 import SEOPageLayout, {
   Breadcrumbs,
   DimensionBadges,
@@ -8,16 +9,19 @@ import SEOPageLayout, {
 } from "@/components/seo/SEOPageLayout";
 
 export const metadata: Metadata = {
-  title: "Personal Assessment | Opinion DNA",
+  // Absolute: the root template would append a second "| Opinion DNA®".
+  title: { absolute: "Personal Assessment: 48-Dimension Profile | Opinion DNA®" },
   description:
     "The most complete map of your mind. 48 dimensions across Personality, Values, and Meta-Thinking in a single assessment. 179 questions, 10-15 minutes, $47.",
   alternates: { canonical: "https://www.opiniondna.com/personal-assessment" },
   openGraph: {
-    title: "Personal Assessment | Opinion DNA",
+    title: "Personal Assessment: 48-Dimension Profile | Opinion DNA®",
     description:
       "The most complete map of your mind. 48 dimensions in 10-15 minutes. $47.",
     url: "https://www.opiniondna.com/personal-assessment",
+    images: ROOT_OG_IMAGES,
   },
+  twitter: { card: "summary_large_image", images: ROOT_TWITTER_IMAGES },
 };
 
 const faq = [

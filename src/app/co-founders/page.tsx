@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ROOT_OG_IMAGES, ROOT_TWITTER_IMAGES } from "@/lib/seo/share-images";
 import Link from "next/link";
 import SEOPageLayout, {
   Breadcrumbs,
@@ -9,16 +10,19 @@ import SEOPageLayout, {
 } from "@/components/seo/SEOPageLayout";
 
 export const metadata: Metadata = {
-  title: "Co-Founders Report | Opinion DNA",
+  // Absolute: the root template would append a second "| Opinion DNA®".
+  title: { absolute: "Co-Founder Compatibility Report | Opinion DNA®" },
   description:
     "Compare co-founder compatibility across 48 dimensions of personality, values, and meta-thinking. Understand alignment before it becomes a problem.",
   alternates: { canonical: "https://www.opiniondna.com/co-founders" },
   openGraph: {
-    title: "Co-Founders Report | Opinion DNA",
+    title: "Co-Founder Compatibility Report | Opinion DNA®",
     description:
       "Compare co-founder compatibility across 48 dimensions. Understand alignment before it becomes a problem.",
     url: "https://www.opiniondna.com/co-founders",
+    images: ROOT_OG_IMAGES,
   },
+  twitter: { card: "summary_large_image", images: ROOT_TWITTER_IMAGES },
 };
 
 const faq = [

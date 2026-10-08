@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { useCases } from "@/data/seo/use-cases";
+import { dimensionPages } from "@/data/seo/dimensions";
+import Prose from "@/components/seo/Prose";
 import SEOPageLayout, {
   articleJsonLd,
   Breadcrumbs,
+  ContentSections,
   DimensionBadges,
   SEOPageCTA,
   SEOPageFAQ,
@@ -24,10 +27,14 @@ export async function generateMetadata({
   if (!useCase) return {};
 
   return {
-    title: useCase.metaTitle,
+    title: useCase.seoTitle ? { absolute: useCase.seoTitle } : useCase.metaTitle,
     description: useCase.description,
     alternates: { canonical: `https://www.opiniondna.com/for/${slug}` },
-    openGraph: { title: useCase.metaTitle, description: useCase.description, url: `https://www.opiniondna.com/for/${slug}` },
+    openGraph: {
+      title: useCase.seoTitle ?? useCase.metaTitle,
+      description: useCase.description,
+      url: `https://www.opiniondna.com/for/${slug}`,
+    },
   };
 }
 
@@ -44,7 +51,7 @@ export default async function UseCasePage({
     <SEOPageLayout
       jsonLd={[
         articleJsonLd({
-          headline: useCase.metaTitle,
+          headline: useCase.seoTitle ?? useCase.metaTitle,
           description: useCase.description,
           path: `/for/${slug}`,
         }),
@@ -67,9 +74,7 @@ export default async function UseCasePage({
       <DimensionBadges />
 
       <section className="mt-12">
-        <p className="text-foreground leading-relaxed text-lg">
-          {useCase.introduction}
-        </p>
+        <Prose text={useCase.introduction} className="[&_p]:text-lg" />
       </section>
 
       <section className="mt-16">
@@ -96,16 +101,31 @@ export default async function UseCasePage({
           Opinion DNA measures 48 dimensions. These are particularly relevant:
         </p>
         <div className="flex flex-wrap gap-2">
-          {useCase.dimensions.map((dim) => (
-            <span
-              key={dim}
-              className="text-sm px-3 py-1.5 bg-white border border-border rounded-full"
-            >
-              {dim}
-            </span>
-          ))}
+          {useCase.dimensions.map((dim) => {
+            const page = dimensionPages.find(
+              (d) => d.name.toLowerCase() === dim.toLowerCase()
+            );
+            return page ? (
+              <Link
+                key={dim}
+                href={`/dimensions/${page.slug}`}
+                className="text-sm px-3 py-1.5 bg-white border border-border rounded-full hover:border-primary hover:text-primary transition-colors"
+              >
+                {dim}
+              </Link>
+            ) : (
+              <span
+                key={dim}
+                className="text-sm px-3 py-1.5 bg-white border border-border rounded-full"
+              >
+                {dim}
+              </span>
+            );
+          })}
         </div>
       </section>
+
+      {useCase.sections && <ContentSections sections={useCase.sections} />}
 
       <section className="mt-12 bg-white rounded-xl border border-border p-8">
         <h3 className="text-xl text-black mb-4">How it works</h3>

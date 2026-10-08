@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ROOT_OG_IMAGES, ROOT_TWITTER_IMAGES } from "@/lib/seo/share-images";
+import Link from "next/link";
 import SEOPageLayout, {
   Breadcrumbs,
   DimensionBadges,
@@ -7,20 +9,34 @@ import SEOPageLayout, {
   SEOPricingCard,
 } from "@/components/seo/SEOPageLayout";
 
+// Absolute title: the root template would otherwise append "| Opinion DNA®".
+const TITLE = "Team DNA Assessment for Companies | Opinion DNA®";
+const DESCRIPTION =
+  "A team DNA assessment for companies: map every member across 48 dimensions of personality, values, and thinking style to see where the team aligns and clashes.";
 export const metadata: Metadata = {
-  title: "Teams Report | Opinion DNA",
-  description:
-    "Map your team across 48 dimensions of personality, values, and meta-thinking. Identify blind spots, improve communication, and build a team that thinks better together.",
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
   alternates: { canonical: "https://www.opiniondna.com/teams" },
   openGraph: {
-    title: "Teams Report | Opinion DNA",
-    description:
-      "Map your team across 48 dimensions. Identify blind spots, improve communication, and build a team that thinks better together.",
+    title: TITLE,
+    description: DESCRIPTION,
     url: "https://www.opiniondna.com/teams",
+    images: ROOT_OG_IMAGES,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ROOT_TWITTER_IMAGES,
   },
 };
 
 const faq = [
+  {
+    question: "What is a team DNA assessment?",
+    answer:
+      "A team DNA assessment maps the combined personality, values, and thinking styles of everyone on a team. The DNA is a metaphor for that psychological profile, and no genetic testing is involved. With Opinion DNA, each member takes the same 179-question assessment, and the Teams Report compares the group across all 48 dimensions.",
+  },
   {
     question: "How many people can be on a team?",
     answer:
@@ -74,12 +90,13 @@ export default function TeamsPage() {
       />
 
       <h1 className="text-3xl md:text-4xl lg:text-5xl text-black leading-tight">
-        Build a team that thinks better together
+        Team DNA: build a team that thinks better together
       </h1>
       <p className="mt-4 text-lg text-muted max-w-2xl leading-relaxed">
-        The Opinion DNA Teams Report maps every member across 48 dimensions of
-        personality, values, and meta-thinking — revealing the hidden dynamics
-        that drive collaboration, conflict, and decision-making.
+        The Opinion DNA Teams Report is a team DNA assessment for companies. It
+        maps every member across 48 dimensions of personality, values, and
+        meta-thinking, then shows the dynamics underneath your team&apos;s
+        collaboration, conflict, and decision-making.
       </p>
       <DimensionBadges />
 
@@ -92,6 +109,87 @@ export default function TeamsPage() {
           miscommunication, better decisions, and conflict that produces ideas
           instead of resentment.
         </p>
+      </section>
+
+      <section className="mt-16">
+        <h2 className="text-2xl md:text-3xl text-black mb-4">
+          What is a team DNA assessment?
+        </h2>
+        <div className="space-y-4">
+          <p className="text-foreground leading-relaxed">
+            A team&apos;s DNA is the combined map of its members&apos;
+            personalities, values, and thinking styles. The DNA is a metaphor
+            for psychology: nothing genetic is tested, and no lab or saliva kit
+            is involved. Each person answers the same 179 questions, and the
+            Teams Report lays their 48 dimension scores side by side, so you can
+            see the patterns the group shares and the places where it splits.
+          </p>
+          <p className="text-foreground leading-relaxed">
+            For corporate teams, the value is in the values and meta-thinking
+            layers, which most workplace assessments leave out. A team that
+            scores high on{" "}
+            <Link
+              href="/dimensions/group"
+              className="text-primary hover:underline"
+            >
+              Group
+            </Link>{" "}
+            puts real weight on shared identity and belonging. Wide gaps on{" "}
+            <Link
+              href="/dimensions/social-dominance"
+              className="text-primary hover:underline"
+            >
+              Social Dominance
+            </Link>{" "}
+            can surface as arguments about hierarchy and who gets a say. If most
+            of the room scores high on{" "}
+            <Link
+              href="/dimensions/deference"
+              className="text-primary hover:underline"
+            >
+              Deference
+            </Link>
+            , meetings may run smoothly while disagreement goes unsaid. And{" "}
+            <Link
+              href="/dimensions/need-for-cognition"
+              className="text-primary hover:underline"
+            >
+              Need for Cognition
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/dimensions/intellectual-humility"
+              className="text-primary hover:underline"
+            >
+              Intellectual Humility
+            </Link>{" "}
+            shape how a team argues: how much it enjoys a hard problem, and how
+            readily people change their minds when the evidence turns.
+          </p>
+          <p className="text-foreground leading-relaxed">
+            Our guide to{" "}
+            <Link
+              href="/for/teams-and-leadership"
+              className="text-primary hover:underline"
+            >
+              personality assessment for teams
+            </Link>{" "}
+            covers how companies put the results to work. If you are weighing
+            professional instruments such as MBTI Step II, our{" "}
+            <Link
+              href="/alternatives/mbti-step-ii-alternatives"
+              className="text-primary hover:underline"
+            >
+              MBTI Step II alternatives
+            </Link>{" "}
+            guide sets out what each one measures and who can administer it.
+            For the partnership at the top of a company, the{" "}
+            <Link href="/co-founders" className="text-primary hover:underline">
+              Co-Founders Report
+            </Link>{" "}
+            applies the same 48 dimensions to two founders.
+          </p>
+        </div>
       </section>
 
       <section className="mt-16">

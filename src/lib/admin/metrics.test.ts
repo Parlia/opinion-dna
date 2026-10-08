@@ -142,6 +142,49 @@ describe("buildMetrics", () => {
     // real1 moved out of unknown
     expect(mm.channels.rows.find((r) => r.source === "unknown")?.signups).toBe(2);
   });
+
+  it("groups real users by first landing path, never guessing for uncaptured ones", () => {
+    const raw = makeRaw();
+    raw.profiles = raw.profiles.map((p) =>
+      p.id === "real1"
+        ? { ...p, referrer: "www.google.com", landingPath: "/alternatives/disc-alternatives" }
+        : p.id === "internal1"
+          ? { ...p, landingPath: "/alternatives/disc-alternatives" } // internal: excluded
+          : p
+    );
+    const mm = buildMetrics(raw, NOW);
+    expect(mm.landing_pages.tracked).toBe(true);
+    expect(mm.landing_pages.rows).toEqual([
+      {
+        path: "/alternatives/disc-alternatives",
+        signups_mtd: 1,
+        signups_all_time: 1,
+        sales_all_time: 1,
+        revenue_usd_all_time: 47,
+        channels: { "google-search": 1 },
+      },
+    ]);
+    // real2, comp1, refund1 have no landing path
+    expect(mm.landing_pages.not_captured_users).toBe(3);
+  });
+
+  it("exports recent real sales with channel and landing path, no emails", () => {
+    const raw = makeRaw();
+    raw.profiles = raw.profiles.map((p) =>
+      p.id === "real1" ? { ...p, referrer: "www.google.com", landingPath: "/" } : p
+    );
+    const mm = buildMetrics(raw, NOW);
+    expect(mm.recent_sales).toEqual([
+      {
+        created_at: "2026-06-07T10:20:00Z",
+        product: "personal",
+        amount_usd: 47,
+        channel: "google-search",
+        landing_path: "/",
+      },
+    ]);
+    expect(JSON.stringify(mm.recent_sales)).not.toContain("@");
+  });
 });
 
 describe("buildMetrics heuristic fallback", () => {
@@ -167,6 +210,7 @@ describe("buildUserRows + buildRecentRealSales", () => {
     expect(rows.find((r) => r.userId === "internal1")?.isInternal).toBe(true);
     expect(rows.find((r) => r.userId === "real1")?.personalPaid).toBe(true);
     expect(rows.every((r) => r.channel === "unknown")).toBe(true);
+    expect(rows.every((r) => r.landingPath === null)).toBe(true);
   });
 
   it("lists only real sales, newest first", () => {
@@ -174,5 +218,6 @@ describe("buildUserRows + buildRecentRealSales", () => {
     expect(recent).toHaveLength(1);
     expect(recent[0].email).toBe("chad@parry.org");
     expect(recent[0].amountCents).toBe(4700);
+    expect(recent[0].landingPath).toBeNull();
   });
 });
