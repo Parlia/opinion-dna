@@ -16,6 +16,13 @@ const ALTERNATIVE_SLUGS = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@sparticuz/chromium"],
+  // @sparticuz/chromium finds its brotli'd binaries via
+  // dirname(fileURLToPath(import.meta.url)) + "../bin", which Next's tracing
+  // doesn't follow. Ship bin/ explicitly or chromium.executablePath() can't
+  // find chromium.br on Vercel.
+  outputFileTracingIncludes: {
+    "/api/report/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+  },
   async redirects() {
     return [
       { source: "/diagnostic", destination: "/personal-assessment", statusCode: 301 },
