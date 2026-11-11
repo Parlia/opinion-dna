@@ -17,17 +17,18 @@ function pctLabel(r: number | null): string {
 }
 
 const STEPS: { key: keyof FunnelWindow; label: string }[] = [
-  { key: "quiz_starts", label: "Quiz starts" },
   { key: "signups", label: "Signups" },
-  { key: "quiz_completed", label: "Quiz done" },
+  { key: "quiz_starts", label: "Quiz starts" },
+  { key: "quiz_completed", label: "Quiz done (free)" },
   { key: "paid_personal", label: "Paid (real)" },
   { key: "report_ready", label: "Report ready" },
 ];
 
 // Conversion rate displayed under the step it leads INTO.
 const RATE_INTO: Partial<Record<keyof FunnelWindow, keyof FunnelWindow>> = {
-  paid_personal: "signup_to_paid_rate",
+  quiz_starts: "quiz_start_rate",
   quiz_completed: "quiz_complete_rate",
+  paid_personal: "quiz_to_paid_rate",
   report_ready: "paid_to_report_rate",
 };
 
@@ -69,8 +70,8 @@ export function FunnelStrip({ funnel }: { funnel: AdminMetrics["funnel"] }) {
               <p className="text-xs text-[var(--muted)] uppercase tracking-wide">{step.label}</p>
               <p className="mt-1 text-2xl font-semibold text-[var(--foreground)] tabular-nums">
                 {value === null ? (
-                  <span className="text-base text-[#ccc]" title="Not tracked in-app — lives in analytics">
-                    not tracked
+                  <span className="text-base text-[#ccc]" title="Quiz answer data couldn't be loaded">
+                    unavailable
                   </span>
                 ) : (
                   value

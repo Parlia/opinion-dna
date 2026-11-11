@@ -228,7 +228,7 @@ export default function BookPage() {
             href="/signup"
             className="inline-flex items-center justify-center px-10 py-4 bg-primary text-white font-bold rounded-lg text-lg hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 transition-all"
           >
-            Take My Opinion DNA &mdash; $47
+            Take My Opinion DNA Free
           </Link>
           <a
             href="https://www.penguin.co.uk/books/458410/why-we-think-what-we-think-by-munthe-turi/9781529153842"

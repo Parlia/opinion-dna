@@ -39,13 +39,20 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Types
 // ---------------------------------------------------------------------------
 export interface FunnelWindow {
-  quiz_starts: number | null; // not tracked in-app (lives in analytics)
   signups: number;
+  /** Answered the first question. Null if the answer data wasn't loaded. */
+  quiz_starts: number | null;
+  /** Answered every question, whether or not they have paid (the quiz is free). */
   quiz_completed: number;
   paid_personal: number;
   report_ready: number;
   signup_to_paid_rate: number | null;
+  /** quiz starts / signups */
+  quiz_start_rate: number | null;
+  /** quiz completed / quiz starts (or / signups when starts aren't known) */
   quiz_complete_rate: number | null;
+  /** paid / quiz completed: how well the free preview sells the unlock */
+  quiz_to_paid_rate: number | null;
   paid_to_report_rate: number | null;
 }
 
@@ -241,6 +248,10 @@ export interface AdminRaw {
   users: RawUser[];
   profiles: RawProfile[];
   scores: RawScore[];
+  /** One entry per user who answered the first quiz question. */
+  quizStarts?: RawScore[];
+  /** One entry per user who answered all the questions, paid or not. */
+  quizFinishes?: RawScore[];
   purchases: RawPurchase[];
   reports: RawReport[];
   invites: RawInvite[];
@@ -266,6 +277,73 @@ export function isInternalByHeuristic(email: string | null | undefined): boolean
       "alessandramillar@gmail.com",
     ].includes(e)
   );
+}
+
+const LAST_QUESTION_INDEX = 178;
+const QUIZ_LENGTH = LAST_QUESTION_INDEX + 1;
+
+/**
+ * Quiz starts and finishes, read from the saved answers. The quiz is free, so
+ * user_scores (written only once someone has paid) no longer tells us who
+ * finished. Reading every answer row would be ~179 rows per user, so this
+ * reads just the first-question rows (starts) and last-question rows
+ * (candidates for "finished"), then confirms each unpaid candidate with a
+ * count. Returns undefined fields on a query error so the funnel degrades to
+ * the old behaviour instead of failing the dashboard.
+ */
+async function fetchQuizProgress(
+  admin: SupabaseClient,
+  scoredUserIds: Set<string>,
+): Promise<{ quizStarts?: RawScore[]; quizFinishes?: RawScore[] }> {
+  const PAGE = 1000;
+  async function rowsFor(index: number, timeColumn: "created_at" | "updated_at") {
+    const out: RawScore[] = [];
+    for (let page = 0; page < 100; page++) {
+      const { data, error } = await admin
+        .from("quiz_responses")
+        .select(`user_id, ${timeColumn}`)
+        .eq("question_index", index)
+        .order("id", { ascending: true })
+        .range(page * PAGE, (page + 1) * PAGE - 1);
+      if (error) return null;
+      for (const row of (data ?? []) as unknown as Record<string, string>[]) {
+        out.push({ userId: row.user_id, createdAt: row[timeColumn] });
+      }
+      if (!data || data.length < PAGE) break;
+    }
+    return out;
+  }
+
+  const [starts, lastAnswered] = await Promise.all([
+    rowsFor(0, "created_at"),
+    rowsFor(LAST_QUESTION_INDEX, "updated_at"),
+  ]);
+  if (!starts || !lastAnswered) return {};
+
+  // Anyone with user_scores finished by definition. For the rest, answering
+  // the last question isn't proof (questions can be skipped), so count.
+  const quizFinishes: RawScore[] = [];
+  const unconfirmed: RawScore[] = [];
+  for (const row of lastAnswered) {
+    (scoredUserIds.has(row.userId) ? quizFinishes : unconfirmed).push(row);
+  }
+  const CHUNK = 20;
+  for (let i = 0; i < unconfirmed.length; i += CHUNK) {
+    const chunk = unconfirmed.slice(i, i + CHUNK);
+    const counts = await Promise.all(
+      chunk.map((row) =>
+        admin
+          .from("quiz_responses")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", row.userId),
+      ),
+    );
+    chunk.forEach((row, j) => {
+      if ((counts[j].count ?? 0) >= QUIZ_LENGTH) quizFinishes.push(row);
+    });
+  }
+
+  return { quizStarts: starts, quizFinishes };
 }
 
 export async function fetchAdminRaw(admin: SupabaseClient): Promise<AdminRaw> {
@@ -337,15 +415,23 @@ export async function fetchAdminRaw(admin: SupabaseClient): Promise<AdminRaw> {
     landingPath: p.landing_path ?? null,
   }));
 
+  const scores = (scoresResult.data ?? []).map((s) => {
+    const r = s as { user_id: string; created_at: string };
+    return { userId: r.user_id, createdAt: r.created_at };
+  });
+  const { quizStarts, quizFinishes } = await fetchQuizProgress(
+    admin,
+    new Set(scores.map((s) => s.userId)),
+  );
+
   return {
     users,
     profiles,
     hasInternalColumn,
     hasAttributionColumns,
-    scores: (scoresResult.data ?? []).map((s) => {
-      const r = s as { user_id: string; created_at: string };
-      return { userId: r.user_id, createdAt: r.created_at };
-    }),
+    scores,
+    quizStarts,
+    quizFinishes,
     purchases: (purchasesResult.data ?? []).map((p) => {
       const r = p as {
         id: string;
@@ -532,10 +618,23 @@ export function buildMetrics(raw: AdminRaw, now: Date): AdminMetrics {
     attach_rate: rate(buyersWithComparison, personalBuyersMtd.size),
   };
 
-  // Funnel — flow within a window, real signals only. quiz_starts is null (the
-  // true top of funnel lives in Vercel Analytics, not the app DB).
+  // Funnel — flow within a window, real signals only. The quiz is free, so
+  // the order is signup -> quiz start -> quiz done -> paid -> report.
   const realUsers = raw.users.filter((u) => !isInternal(u.id));
-  const realScores = raw.scores.filter((s) => !isInternal(s.userId));
+  const realStarts = raw.quizStarts
+    ? raw.quizStarts.filter((s) => !isInternal(s.userId))
+    : null;
+  // "Quiz done" = answered everything, paid or not. Prefer the time they
+  // actually finished; fall back to when scores were written for anyone the
+  // answer data doesn't cover (and for everything, if it wasn't loaded).
+  const finishedAt = new Map<string, string>();
+  for (const f of raw.quizFinishes ?? []) finishedAt.set(f.userId, f.createdAt);
+  for (const s of raw.scores) {
+    if (!finishedAt.has(s.userId)) finishedAt.set(s.userId, s.createdAt);
+  }
+  const realScores = [...finishedAt]
+    .filter(([userId]) => !isInternal(userId))
+    .map(([userId, createdAt]) => ({ userId, createdAt }));
   const realPersonalSales = realSales.filter((p) => p.type === "personal");
   const reportReady = raw.reports.filter(
     (r) => r.type === "personal" && r.status === "completed" && !isInternal(r.userId)
@@ -546,14 +645,17 @@ export function buildMetrics(raw: AdminRaw, now: Date): AdminMetrics {
     const quizCompleted = realScores.filter((s) => inW(s.createdAt)).length;
     const paid = realPersonalSales.filter((p) => inW(p.createdAt)).length;
     const reportReadyCount = reportReady.filter((r) => inW(r.updatedAt)).length;
+    const quizStarts = realStarts ? realStarts.filter((s) => inW(s.createdAt)).length : null;
     return {
-      quiz_starts: null,
       signups,
+      quiz_starts: quizStarts,
       quiz_completed: quizCompleted,
       paid_personal: paid,
       report_ready: reportReadyCount,
       signup_to_paid_rate: rate(paid, signups),
-      quiz_complete_rate: rate(quizCompleted, signups),
+      quiz_start_rate: quizStarts === null ? null : rate(quizStarts, signups),
+      quiz_complete_rate: rate(quizCompleted, quizStarts ?? signups),
+      quiz_to_paid_rate: rate(paid, quizCompleted),
       paid_to_report_rate: rate(reportReadyCount, paid),
     };
   };

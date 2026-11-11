@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendQuizNudgeEmail } from "@/lib/email/resend";
+import { sendQuizNudgeEmail, sendResultsReadyEmail } from "@/lib/email/resend";
 import { QUESTIONS } from "@/lib/scoring/questions";
 
 export const dynamic = "force-dynamic";
@@ -14,14 +14,22 @@ const STALE_AFTER_MS = 3 * 24 * 3600_000;
 // email to someone who stalled months ago reads as spam, not help.
 const MAX_AGE_MS = 60 * 24 * 3600_000;
 
+// Supabase returns at most 1000 rows per request; page through recent answers.
+const PAGE_SIZE = 1000;
+const MAX_PAGES = 200;
+
 /**
  * GET /api/cron/quiz-nudge — invoked daily by Vercel Cron (see vercel.json).
  *
- * Finds paid users who started the quiz, stalled for 3+ days, and never
- * submitted, then sends each a one-time "your progress is saved" email.
- * profiles.quiz_nudge_sent_at is the idempotency claim (migration 022):
- * it's set via conditional update BEFORE sending, so a crash mid-run can
- * skip an email but never double-send.
+ * The quiz is free, so this covers everyone with an account, paid or not.
+ * Each user gets at most ONE of these, ever:
+ *
+ *   - started the quiz, stalled for 3+ days  -> "your progress is saved"
+ *   - finished the quiz, hasn't paid, 3+ days -> "your results are waiting"
+ *
+ * profiles.quiz_nudge_sent_at is the idempotency claim (migration 022) for
+ * both: it's set via conditional update BEFORE sending, so a crash mid-run
+ * can skip an email but never double-send.
  */
 export async function GET(request: Request) {
   // Vercel sends `Authorization: Bearer ${CRON_SECRET}` when the env var is
@@ -32,31 +40,47 @@ export async function GET(request: Request) {
   }
 
   const admin = createAdminClient();
+  const now = Date.now();
 
-  // Paid users (any completed purchase — same gate the quiz itself uses).
-  const { data: purchases, error: purchasesError } = await admin
-    .from("purchases")
-    .select("user_id")
-    .eq("status", "completed");
-  if (purchasesError) {
-    console.error("[cron:quiz-nudge] purchases query failed:", purchasesError);
-    return NextResponse.json({ error: "purchases query failed" }, { status: 500 });
+  // Most recent quiz activity per user, among answers touched inside the
+  // 60-day window. Anyone with no activity in the window is too dormant.
+  const windowStart = new Date(now - MAX_AGE_MS).toISOString();
+  const lastActive = new Map<string, number>();
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data, error } = await admin
+      .from("quiz_responses")
+      .select("user_id, updated_at")
+      .gte("updated_at", windowStart)
+      .order("updated_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    if (error) {
+      console.error("[cron:quiz-nudge] quiz_responses query failed:", error);
+      return NextResponse.json({ error: "quiz_responses query failed" }, { status: 500 });
+    }
+    for (const r of data ?? []) {
+      const t = new Date(r.updated_at).getTime();
+      if (t > (lastActive.get(r.user_id) ?? 0)) lastActive.set(r.user_id, t);
+    }
+    if (!data || data.length < PAGE_SIZE) break;
   }
-  const paidUserIds = [...new Set((purchases ?? []).map((p) => p.user_id))];
-  if (paidUserIds.length === 0) return NextResponse.json({ sent: 0 });
 
-  // Exclude users who already submitted (they have user_scores).
+  const staleIds = [...lastActive]
+    .filter(([, t]) => now - t >= STALE_AFTER_MS)
+    .map(([id]) => id);
+  if (staleIds.length === 0) return NextResponse.json({ sent: 0 });
+
+  // Exclude users whose scores are unlocked (they have user_scores).
   const { data: scored } = await admin
     .from("user_scores")
     .select("user_id")
-    .in("user_id", paidUserIds);
+    .in("user_id", staleIds);
   const scoredIds = new Set((scored ?? []).map((s) => s.user_id));
+  const candidateIds = staleIds.filter((id) => !scoredIds.has(id));
+  if (candidateIds.length === 0) return NextResponse.json({ sent: 0 });
 
   // Exclude internal/test accounts and anyone already nudged. If migration
   // 022 isn't applied yet the select errors — bail rather than risk repeats.
-  const candidateIds = paidUserIds.filter((id) => !scoredIds.has(id));
-  if (candidateIds.length === 0) return NextResponse.json({ sent: 0 });
-
   const { data: profiles, error: profilesError } = await admin
     .from("profiles")
     .select("id, full_name, preferred_name, is_internal, quiz_nudge_sent_at")
@@ -71,28 +95,33 @@ export async function GET(request: Request) {
   );
   if (eligible.length === 0) return NextResponse.json({ sent: 0 });
 
-  // Per-user progress: answer count + most recent activity.
-  const { data: responses } = await admin
-    .from("quiz_responses")
-    .select("user_id, updated_at")
+  const { data: purchases, error: purchasesError } = await admin
+    .from("purchases")
+    .select("user_id")
+    .eq("status", "completed")
     .in("user_id", eligible.map((p) => p.id));
-
-  const progress = new Map<string, { count: number; lastActive: number }>();
-  for (const r of responses ?? []) {
-    const entry = progress.get(r.user_id) ?? { count: 0, lastActive: 0 };
-    entry.count += 1;
-    entry.lastActive = Math.max(entry.lastActive, new Date(r.updated_at).getTime());
-    progress.set(r.user_id, entry);
+  if (purchasesError) {
+    console.error("[cron:quiz-nudge] purchases query failed:", purchasesError);
+    return NextResponse.json({ error: "purchases query failed" }, { status: 500 });
   }
+  const paidIds = new Set((purchases ?? []).map((p) => p.user_id));
 
-  const now = Date.now();
   let sent = 0;
+  let sentResultsReady = 0;
 
   for (const profile of eligible) {
-    const p = progress.get(profile.id);
-    if (!p || p.count < MIN_ANSWERS || p.count >= QUESTIONS.length) continue;
-    const idle = now - p.lastActive;
-    if (idle < STALE_AFTER_MS || idle > MAX_AGE_MS) continue;
+    // Full answer count (the window above may not cover older answers).
+    const { count } = await admin
+      .from("quiz_responses")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profile.id);
+    const answered = count ?? 0;
+    if (answered < MIN_ANSWERS) continue;
+
+    const finished = answered >= QUESTIONS.length;
+    // Finished and paid: their scores unlock the next time they visit, and
+    // they have nothing left to be nudged about.
+    if (finished && paidIds.has(profile.id)) continue;
 
     // Atomic claim before sending — never double-send.
     const { data: claimed } = await admin
@@ -107,14 +136,15 @@ export async function GET(request: Request) {
     const email = authUser.user?.email;
     if (!email) continue;
 
-    await sendQuizNudgeEmail(
-      email,
-      profile.preferred_name?.trim() || profile.full_name?.trim() || "",
-      p.count,
-      QUESTIONS.length,
-    );
+    const name = profile.preferred_name?.trim() || profile.full_name?.trim() || "";
+    if (finished) {
+      await sendResultsReadyEmail(email, name);
+      sentResultsReady += 1;
+    } else {
+      await sendQuizNudgeEmail(email, name, answered, QUESTIONS.length);
+    }
     sent += 1;
   }
 
-  return NextResponse.json({ sent, considered: eligible.length });
+  return NextResponse.json({ sent, sentResultsReady, considered: eligible.length });
 }

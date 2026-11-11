@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
@@ -756,6 +757,19 @@ function GeneratingView() {
             </span>
           </div>
         </div>
+
+        {/* New tab so leaving doesn't interrupt this page's wait. */}
+        <p className="mt-6 text-sm text-[var(--muted)]">
+          This takes a few minutes.{" "}
+          <a
+            href="/scores"
+            target="_blank"
+            rel="noopener"
+            className="text-[var(--primary)] font-medium hover:underline"
+          >
+            See all 48 scores while you wait
+          </a>
+        </p>
       </div>
 
       {/* Multi-segment progress bar */}
@@ -1065,13 +1079,18 @@ export default function ReportPage() {
     generating: false,
     hasScores: false,
   });
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState(0);
   const [pdfLoading, setPdfLoading] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
   const [navScroll, setNavScroll] = useState({ left: false, right: true });
 
+  // Guards the automatic first generation so a re-render or a strict-mode
+  // double effect can't start two reports.
+  const autoGenerateStarted = useRef(false);
+
   useEffect(() => {
-    loadReport();
+    loadReport({ autoGenerate: true });
   }, []);
 
   // Auto-scroll nav so active button is visible
@@ -1124,7 +1143,7 @@ export default function ReportPage() {
     return () => observer.disconnect();
   }, [state.report]);
 
-  async function loadReport() {
+  async function loadReport(opts: { autoGenerate?: boolean } = {}) {
     const supabase = createClient();
     const {
       data: { user },
@@ -1137,7 +1156,24 @@ export default function ReportPage() {
       .eq("user_id", user.id)
       .limit(1);
 
-    const hasScores = (scores?.length ?? 0) > 0;
+    let hasScores = (scores?.length ?? 0) > 0;
+
+    // No scores on file yet. Either the quiz isn't done, or it was finished
+    // free and the user hasn't unlocked it (send them to the preview), or they
+    // have just paid and the scores get written by this call.
+    if (!hasScores) {
+      try {
+        const res = await fetch("/api/scores/me");
+        const me = res.ok ? await res.json() : null;
+        if (me?.status === "full") hasScores = true;
+        if (me?.status === "teaser") {
+          router.replace("/scores");
+          return;
+        }
+      } catch {
+        /* fall through to the "take the quiz" screen */
+      }
+    }
 
     const { data: reports } = await supabase
       .from("reports")
@@ -1156,6 +1192,16 @@ export default function ReportPage() {
 
     if (reports?.[0]?.status === "generating") {
       pollReport();
+    } else if (
+      opts.autoGenerate &&
+      hasScores &&
+      !reports?.[0] &&
+      !autoGenerateStarted.current
+    ) {
+      // First visit after the quiz: no button press needed. Only when there is
+      // no report at all, so a failed one still shows the Retry screen.
+      autoGenerateStarted.current = true;
+      handleGenerate();
     }
   }
 

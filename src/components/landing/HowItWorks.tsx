@@ -6,14 +6,14 @@ const steps = [
     number: "1",
     title: "Take the assessment",
     description:
-      "Answer 179 carefully designed questions across personality, values, and meta-thinking. Takes 10-15 minutes.",
+      "Answer 179 carefully designed questions across personality, values, and meta-thinking. Free to take.",
     icon: "/icons/assessment.svg",
   },
   {
     number: "2",
     title: "Get your Opinion DNA",
     description:
-      "See your scores across all 48 elements, grouped into three dimensions. Compare yourself to the population.",
+      "Get a free preview of what stands out most about you, then unlock your scores across all 48 elements for $47.",
     icon: "/icons/dna.svg",
   },
   {

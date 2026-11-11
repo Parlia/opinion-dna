@@ -13,7 +13,7 @@ const product = {
     "Cognitive Signature analysis",
     "Viewable online",
   ],
-  cta: "Start My Assessment",
+  cta: "Start Free, Unlock Later",
 };
 
 export default function Pricing() {
@@ -44,7 +44,7 @@ export default function Pricing() {
             Your Opinion DNA
           </h2>
           <p className="mt-4 text-lg text-muted">
-            One assessment. Lifetime access to your scores and report.
+            Take the assessment free. Pay once to unlock your full scores and report.
           </p>
         </div>
       </AnimateIn>

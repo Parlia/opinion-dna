@@ -23,7 +23,7 @@ const ENCOURAGEMENTS: Record<number, string> = {
   60: "You're in the flow now.",
   90: "Halfway there! You're doing great.",
   120: "Two-thirds done — the finish line is in sight.",
-  135: "Almost there! Just a few more to go.",
+  135: "Three-quarters done. Keep going.",
   150: "The home stretch! You've got this.",
   170: "So close — just a handful left!",
 };
@@ -37,6 +37,7 @@ export default function QuizPage() {
   const [transitioning, setTransitioning] = useState(false);
   const [encouragement, setEncouragement] = useState<string | null>(null);
   const [clickedValue, setClickedValue] = useState<number | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const router = useRouter();
 
   // Load saved progress
@@ -97,23 +98,48 @@ export default function QuizPage() {
       setTimeout(() => setEncouragement(null), 4000);
     }
 
-    // Animate out, advance, animate in
+    // Animate out, advance, animate in. Go to the next question, or, at the
+    // end, back to the first one that was skipped so nobody gets stranded on
+    // the last question with unanswered ones behind them.
     setTimeout(() => {
       setClickedValue(null);
+      let nextIndex = -1;
       if (currentIndex < QUESTIONS.length - 1) {
+        nextIndex = currentIndex + 1;
+      } else {
+        nextIndex = QUESTIONS.findIndex((_, i) => !newAnswers.has(i));
+      }
+      if (nextIndex !== -1) {
         setTransitioning(true);
         setTimeout(() => {
-          setCurrentIndex(currentIndex + 1);
+          setCurrentIndex(nextIndex);
           setTransitioning(false);
         }, 200);
       }
     }, 350);
   }
 
+  // Number keys 1-5 answer the current question (1 = Strongly Agree, matching
+  // the left-to-right button order).
+  // Re-registered every render so the handler always sees current state.
+  useEffect(() => {
+    const busy =
+      loading || transitioning || clickedValue !== null || answers.size >= QUESTIONS.length;
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      const n = Number(e.key);
+      if (!Number.isInteger(n) || n < 1 || n > 5 || busy) return;
+      handleAnswer(ANSWER_VALUES[n - 1]);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   async function handleSubmit() {
     if (answers.size < QUESTIONS.length) return;
 
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const response = await fetch("/api/quiz/submit", {
         method: "POST",
@@ -123,10 +149,20 @@ export default function QuizPage() {
         }),
       });
 
+      // Paid users get their full scores; everyone else gets the free preview.
+      // Both live at /scores.
       if (response.ok) {
         router.push("/scores");
+        return;
       }
+      setSubmitError(
+        "We couldn't calculate your scores. Your answers are saved, so please try again."
+      );
+      setSubmitting(false);
     } catch {
+      setSubmitError(
+        "We couldn't reach the server. Your answers are saved, so please try again."
+      );
       setSubmitting(false);
     }
   }
@@ -191,15 +227,18 @@ export default function QuizPage() {
                 Quiz complete!
               </h2>
               <p className="mt-2 text-[var(--muted)]">
-                You&apos;ve answered all {QUESTIONS.length} questions. Submit to calculate your scores.
+                You&apos;ve answered all {QUESTIONS.length} questions. Submit to see your results.
               </p>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
                 className="mt-6 px-8 py-3 bg-[var(--primary)] text-white rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {submitting ? "Calculating scores..." : "Submit & View Scores"}
+                {submitting ? "Calculating scores..." : "See My Results"}
               </button>
+              {submitError && (
+                <p className="mt-4 text-sm text-red-600" role="alert">{submitError}</p>
+              )}
             </div>
           ) : (
             <>
@@ -242,11 +281,27 @@ export default function QuizPage() {
                   Previous
                 </button>
                 <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
-                  {saving && <span>Saving...</span>}
+                  {saving ? (
+                    <span>Saving...</span>
+                  ) : (
+                    <span className="hidden md:inline">Tip: press 1 to 5 to answer</span>
+                  )}
                 </div>
                 <button
-                  onClick={() => setCurrentIndex(Math.min(QUESTIONS.length - 1, currentIndex + 1))}
-                  disabled={currentIndex >= QUESTIONS.length - 1}
+                  onClick={() => {
+                    if (currentIndex < QUESTIONS.length - 1) {
+                      setCurrentIndex(currentIndex + 1);
+                      return;
+                    }
+                    const firstUnanswered = QUESTIONS.findIndex(
+                      (_, i) => i !== currentIndex && !answers.has(i)
+                    );
+                    if (firstUnanswered !== -1) setCurrentIndex(firstUnanswered);
+                  }}
+                  disabled={
+                    currentIndex >= QUESTIONS.length - 1 &&
+                    !QUESTIONS.some((_, i) => i !== currentIndex && !answers.has(i))
+                  }
                   className="px-4 py-2 text-sm text-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-30 transition-colors"
                 >
                   Skip

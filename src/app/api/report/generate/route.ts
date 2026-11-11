@@ -46,6 +46,24 @@ export async function POST() {
   }
 
   const admin = createAdminClient();
+
+  // The report page now starts generation automatically, so two tabs (or a
+  // reload at the wrong moment) can race here. If a personal report is already
+  // being generated, report success and let the client poll for it instead of
+  // paying for a second one. The 15-minute window matches maxDuration, so a
+  // crashed run can't block retries forever.
+  const { data: inFlight } = await admin
+    .from("reports")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("type", "personal")
+    .eq("status", "generating")
+    .gt("created_at", new Date(Date.now() - 15 * 60_000).toISOString())
+    .limit(1);
+  if (inFlight && inFlight.length > 0) {
+    return NextResponse.json({ status: "generating" }, { status: 202 });
+  }
+
   const { data: report } = await admin
     .from("reports")
     .insert({

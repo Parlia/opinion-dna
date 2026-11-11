@@ -48,6 +48,50 @@ function makeRaw(): AdminRaw {
   };
 }
 
+describe("buildMetrics free-quiz funnel", () => {
+  const raw = makeRaw();
+  // comp1 started but never finished; real2 finished free on 06-03 and has no
+  // purchase; real1 finished, then paid. internal1 is excluded throughout.
+  raw.scores = [{ userId: "real1", createdAt: "2026-06-07T10:30:00Z" }];
+  raw.quizStarts = [
+    { userId: "real1", createdAt: "2026-06-07T10:05:00Z" },
+    { userId: "real2", createdAt: "2026-06-02T10:05:00Z" },
+    { userId: "comp1", createdAt: "2026-06-04T10:05:00Z" },
+    { userId: "internal1", createdAt: "2026-06-01T10:05:00Z" },
+  ];
+  raw.quizFinishes = [
+    { userId: "real1", createdAt: "2026-06-07T10:15:00Z" },
+    { userId: "real2", createdAt: "2026-06-03T10:15:00Z" },
+    { userId: "internal1", createdAt: "2026-06-01T10:30:00Z" },
+  ];
+  const m = buildMetrics(raw, NOW);
+
+  it("counts starts and free completions, not just paid ones", () => {
+    expect(m.funnel_mtd.signups).toBe(3);
+    expect(m.funnel_mtd.quiz_starts).toBe(3);
+    expect(m.funnel_mtd.quiz_completed).toBe(2); // real2 has no user_scores row
+    expect(m.funnel_mtd.paid_personal).toBe(1);
+  });
+
+  it("reports step-to-step rates in the new order", () => {
+    expect(m.funnel_mtd.quiz_start_rate).toBe(1);
+    expect(m.funnel_mtd.quiz_complete_rate).toBeCloseTo(0.667, 2);
+    expect(m.funnel_mtd.quiz_to_paid_rate).toBe(0.5);
+  });
+
+  it("dates a completion by when the quiz was finished, not when scores were written", () => {
+    // real1's scores row is dated 06-07 (inside the last day), but the quiz
+    // was finished on 05-20, outside the 7-day window.
+    const late = makeRaw();
+    late.scores = [{ userId: "real1", createdAt: "2026-06-07T10:30:00Z" }];
+    late.quizStarts = [];
+    late.quizFinishes = [{ userId: "real1", createdAt: "2026-05-20T10:15:00Z" }];
+    const lm = buildMetrics(late, NOW);
+    expect(lm.funnel.last_7d.quiz_completed).toBe(0);
+    expect(lm.funnel.all_time.quiz_completed).toBe(1);
+  });
+});
+
 describe("buildMetrics", () => {
   const m = buildMetrics(makeRaw(), NOW);
 

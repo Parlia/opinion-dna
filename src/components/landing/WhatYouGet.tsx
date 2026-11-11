@@ -242,8 +242,9 @@ export default function WhatYouGet() {
         </AnimateIn>
 
         <div className="grid lg:grid-cols-2 gap-10" ref={sectionRef}>
-          {/* Left: sample scores */}
-          <AnimateIn>
+          {/* Left: sample scores. min-w-0 lets the grid item shrink below the
+              nowrap (truncate) tooltip text, which otherwise overflows on phones. */}
+          <AnimateIn className="min-w-0">
             <div className="bg-white rounded-2xl border border-[var(--border)] overflow-hidden shadow-sm">
               <div className="px-5 py-3 bg-white border-b border-[var(--border)]">
                 <p className="text-xs font-semibold text-muted uppercase tracking-wide">
@@ -270,7 +271,7 @@ export default function WhatYouGet() {
           </AnimateIn>
 
           {/* Right: insight cards */}
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
             <AnimateIn delay={100}>
               <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">
                 Super Powers

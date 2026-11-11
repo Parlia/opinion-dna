@@ -38,16 +38,23 @@ export default function Header() {
           >
             Log in
           </Link>
-          <a
-            href="/#pricing"
+          <Link
+            href="/signup"
             className="text-sm font-semibold bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
           >
             Get Started
-          </a>
+          </Link>
         </nav>
 
+        <div className="md:hidden flex items-center gap-3">
+          <Link
+            href="/signup"
+            className="text-sm font-semibold bg-primary text-white px-3.5 py-2 rounded-lg"
+          >
+            Get Started
+          </Link>
         <button
-          className="md:hidden text-foreground"
+          className="text-foreground"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
@@ -59,6 +66,7 @@ export default function Header() {
             )}
           </svg>
         </button>
+        </div>
       </div>
 
       {menuOpen && (
@@ -80,13 +88,13 @@ export default function Header() {
           >
             Log in
           </Link>
-          <a
-            href="/#pricing"
+          <Link
+            href="/signup"
             className="block text-sm font-semibold bg-primary text-white px-4 py-2 rounded-lg text-center"
             onClick={() => setMenuOpen(false)}
           >
             Get Started
-          </a>
+          </Link>
         </div>
       )}
     </header>

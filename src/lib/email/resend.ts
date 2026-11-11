@@ -30,7 +30,7 @@ export async function sendInviteEmail(
           <strong>${safeName}</strong> has taken the Opinion DNA assessment and wants to compare results with you.
         </p>
         <p style="font-size: 16px; color: #666; line-height: 1.5; margin-bottom: 32px;">
-          Opinion DNA maps your personality, values, and meta-thinking across 48 dimensions. Take your own assessment ($47) and see how your minds compare.
+          Opinion DNA maps your personality, values, and meta-thinking across 48 dimensions. The assessment is free to take, and $47 unlocks your full results so you can see how your minds compare.
         </p>
         <a href="${acceptUrl}" style="display: inline-block; padding: 14px 28px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 12px; font-weight: 500; font-size: 16px;">
           Accept Invitation
@@ -141,14 +141,15 @@ export async function sendWelcomeEmail(to: string, name: string) {
         </h1>
         <p style="font-size: 16px; color: #666; line-height: 1.5; margin-bottom: 24px;">
           Opinion DNA maps how you think across 48 dimensions — personality, values,
-          and meta-thinking. The assessment takes about 15 minutes, and every answer
+          and meta-thinking. The assessment is free to take, and every answer
           saves automatically, so you can pause and come back anytime.
         </p>
         <p style="font-size: 16px; color: #666; line-height: 1.5; margin-bottom: 32px;">
-          When you're done you'll get your scores, a personal report written for you,
-          and the option to compare minds with the people who matter.
+          When you're done you'll see a free preview of your results. From there you
+          can unlock all 48 scores, a personal report written for you, and the option
+          to compare minds with the people who matter.
         </p>
-        <a href="${APP_URL}/dashboard" style="${CTA_STYLE}">Start Your Assessment</a>`),
+        <a href="${APP_URL}/quiz" style="${CTA_STYLE}">Start Your Assessment</a>`),
   });
 }
 
@@ -169,9 +170,34 @@ export async function sendQuizNudgeEmail(to: string, name: string, answeredCount
           is saved. The assessment picks up exactly where you left off.
         </p>
         <p style="font-size: 16px; color: #666; line-height: 1.5; margin-bottom: 32px;">
-          Finish the remaining questions and your full report — 48 dimensions,
-          plus your Cognitive Signature — generates right away.
+          Finish the remaining questions to see what stands out most about you,
+          then unlock all 48 dimensions and your full report.
         </p>
         <a href="${APP_URL}/quiz" style="${CTA_STYLE}">Continue Your Assessment</a>`),
+  });
+}
+
+/** Sent once to users who finished the free quiz but haven't unlocked their results. */
+export async function sendResultsReadyEmail(to: string, name: string) {
+  const safeName = escapeHtml(name);
+  await sendBestEffort({
+    to,
+    tag: "results-ready",
+    subject: "Your Opinion DNA results are waiting",
+    html: wrapper(`
+        <h1 style="font-size: 24px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px;">
+          Your results are ready${safeName ? `, ${safeName}` : ""}
+        </h1>
+        <p style="font-size: 16px; color: #666; line-height: 1.5; margin-bottom: 24px;">
+          You answered all 179 questions, and your Opinion DNA is calculated and saved.
+          Your free preview shows your Big 5 and the three places you differ most
+          from other people.
+        </p>
+        <p style="font-size: 16px; color: #666; line-height: 1.5; margin-bottom: 32px;">
+          Unlock the rest for $47: all 48 scores, plus a personal report on what your
+          profile means for your life, relationships, and career. It comes with a
+          30-day money-back guarantee.
+        </p>
+        <a href="${APP_URL}/scores" style="${CTA_STYLE}">See Your Results</a>`),
   });
 }

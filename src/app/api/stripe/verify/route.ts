@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { recordCompletedPurchase } from "@/lib/stripe/record-purchase";
+import { requestContext, unlockScoresIfReady } from "@/lib/scoring/finalize";
 import type { PurchaseType } from "@/types/database";
 
 export async function POST(request: NextRequest) {
@@ -69,6 +70,15 @@ export async function POST(request: NextRequest) {
       { error: "Failed to record purchase" },
       { status: 500 }
     );
+  }
+
+  // Free-quiz flow: someone who finished the quiz before paying gets their
+  // scores written now, so the report can start as soon as they land.
+  // Best-effort: /api/scores/me does the same on the next scores visit.
+  try {
+    await unlockScoresIfReady(admin, user.id, requestContext(request));
+  } catch (err) {
+    console.error("Score unlock after purchase failed:", err);
   }
 
   return NextResponse.json({ verified: true });

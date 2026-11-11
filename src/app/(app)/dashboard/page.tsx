@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -33,6 +33,7 @@ export default function DashboardPage() {
 
 function DashboardContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [state, setState] = useState<DashboardState>({
     loading: true,
     hasPurchase: false,
@@ -49,7 +50,20 @@ function DashboardContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const userName = user.user_metadata?.full_name || user.email?.split("@")[0] || "there";
+      // Prefer the name the user asked to be called (signup form / Settings).
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("preferred_name, full_name")
+        .eq("id", user.id)
+        .single();
+      const userName =
+        profile?.preferred_name?.trim() ||
+        user.user_metadata?.preferred_name ||
+        profile?.full_name?.trim() ||
+        user.user_metadata?.full_name ||
+        user.email?.split("@")[0] ||
+        "there";
+      const justPurchased = searchParams.get("purchase") === "success";
 
       // If returning from Stripe checkout, verify the purchase
       const sessionId = searchParams.get("session_id");
@@ -114,6 +128,22 @@ function DashboardContent() {
 
       const hasComparison = (comparisonReports?.length ?? 0) > 0;
 
+      // Fresh from checkout with the purchase recorded: skip the checklist.
+      // Most people now pay after finishing the free quiz, so their scores
+      // are already unlocked (by /api/stripe/verify above) and the report can
+      // start right away. Anyone who paid first goes to the quiz.
+      const quizDone = hasScores || (quizProgress ?? 0) >= 179;
+      if (justPurchased && hasPurchase) {
+        if (!quizDone) {
+          router.replace("/quiz");
+          return;
+        }
+        if (!hasReport) {
+          router.replace("/report");
+          return;
+        }
+      }
+
       setState({
         loading: false,
         hasPurchase,
@@ -140,7 +170,7 @@ function DashboardContent() {
     );
   }
 
-  const quizComplete = state.quizProgress >= 179;
+  const quizComplete = state.hasScores || state.quizProgress >= 179;
   const totalQuestions = 179;
 
   return (
@@ -153,35 +183,41 @@ function DashboardContent() {
       </p>
 
       <div className="mt-8 space-y-4">
-        {/* Step 1: Purchase */}
+        {/* Step 1: Take Quiz (free) */}
         <StepCard
           step={1}
-          title="Get your assessment"
-          description={state.hasPurchase ? "Purchase complete" : "Purchase your Opinion DNA assessment to unlock the full quiz."}
-          completed={state.hasPurchase}
-          active={!state.hasPurchase}
-          actionLabel="Purchase Assessment"
-          actionHref="/api/stripe/checkout?product=personal"
-          hideCompletedAction
-        />
-
-        {/* Step 2: Take Quiz */}
-        <StepCard
-          step={2}
           title="Take the quiz"
           description={
-            state.hasScores
+            quizComplete
               ? "Quiz complete"
-              : state.quizProgress > 0 && !quizComplete
+              : state.quizProgress > 0
               ? `${state.quizProgress} of ${totalQuestions} questions answered`
-              : "Answer 179 carefully designed questions (takes 10-15 minutes)."
+              : "Answer 179 carefully designed questions. It's free, and your progress saves as you go."
           }
           completed={quizComplete}
-          active={state.hasPurchase && !quizComplete}
+          active={!quizComplete}
           actionLabel={state.quizProgress > 0 ? "Continue Quiz" : "Start Quiz"}
           actionHref="/quiz"
           progress={state.quizProgress > 0 && !quizComplete ? state.quizProgress / totalQuestions : undefined}
-          hideCompletedAction={state.hasScores}
+          hideCompletedAction
+        />
+
+        {/* Step 2: Unlock (purchase) */}
+        <StepCard
+          step={2}
+          title="Unlock your full results"
+          description={
+            state.hasPurchase
+              ? "Purchase complete"
+              : quizComplete
+              ? "Your free preview is ready. Unlock all 48 scores and your personal report for $47."
+              : "Finish the quiz to see a free preview, then unlock all 48 scores and your personal report for $47."
+          }
+          completed={state.hasPurchase}
+          active={quizComplete && !state.hasPurchase}
+          actionLabel="See My Preview"
+          actionHref="/scores"
+          hideCompletedAction
         />
 
         {/* Step 3: View Scores */}
@@ -190,7 +226,7 @@ function DashboardContent() {
           title="View your scores"
           description="See your 48 element scores across Personality, Values, and Meta-Thinking."
           completed={state.hasScores}
-          active={quizComplete && !state.hasScores}
+          active={state.hasPurchase && quizComplete && !state.hasScores}
           actionLabel="View Scores"
           actionHref="/scores"
         />

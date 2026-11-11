@@ -88,7 +88,7 @@ export function Breadcrumbs({ items }: { items: { label: string; href?: string }
 
 export function SEOPageCTA({
   href = "/signup",
-  label = "Start My Assessment \u2014 $47",
+  label = "Start My Free Assessment",
 }: {
   href?: string;
   label?: string;
@@ -110,7 +110,7 @@ export function SEOPageCTA({
         {label}
       </Link>
       <p className="mt-3 text-sm text-muted">
-        One-time purchase. Lifetime access. 30-day money-back guarantee.
+        Free to take. $47 one-time unlocks your full results. 30-day money-back guarantee.
       </p>
     </section>
   );
@@ -421,9 +421,9 @@ export function SEOPricingCard({
 export function SEOFinalCTA({
   heading,
   subheading,
-  ctaLabel = "Start My Assessment — $47",
+  ctaLabel = "Start My Free Assessment",
   ctaHref = "/signup",
-  trustLine = "One-time purchase. Lifetime access.",
+  trustLine = "Free to take. $47 one-time unlocks your full results.",
 }: {
   heading: string;
   subheading?: string;

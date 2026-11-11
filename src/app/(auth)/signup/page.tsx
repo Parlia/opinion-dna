@@ -132,6 +132,20 @@ function SignupPage() {
             <p className="mt-2 text-[var(--muted)]">
               We&apos;ve sent a confirmation link to <strong>{email}</strong>. Click the link to activate your account.
             </p>
+            <p className="mt-4 text-sm text-[var(--muted)]">
+              It can take a minute to arrive. If you don&apos;t see it, check your spam folder.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSuccess(false);
+                setLoading(false);
+                setCaptchaToken("");
+              }}
+              className="mt-4 text-sm text-[var(--primary)] font-medium hover:underline"
+            >
+              Wrong address? Use a different email
+            </button>
           </div>
         </div>
       </div>
@@ -171,7 +185,7 @@ function SignupPage() {
                 <strong>{inviteFromName}</strong> has taken the Opinion DNA assessment and wants to compare results with you.
               </p>
               <p className="mt-1 text-[var(--muted)]">
-                Create an account to continue — you&apos;ll take your own 179-question assessment ($47, 10-15 minutes). Once you&apos;re done, you&apos;ll both see how your minds compare.
+                Create an account to continue — you&apos;ll take your own 179-question assessment. It&apos;s free to take, and $47 unlocks your full results so you can both see how your minds compare.
               </p>
             </div>
           </div>
@@ -281,6 +295,12 @@ function SignupPage() {
             </button>
           </form>
         </div>
+
+        {!inviteFromName && (
+          <p className="mt-5 text-center text-sm text-[var(--muted)]">
+            Next: your 179-question assessment, free to take. See a preview of your results, then unlock everything for $47.
+          </p>
+        )}
 
         <p className="mt-6 text-center text-sm text-[var(--muted)]">
           Already have an account?{" "}

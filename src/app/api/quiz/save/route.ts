@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { hasPurchase } from "@/lib/auth/require-purchase";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -10,9 +9,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!(await hasPurchase(user.id))) {
-    return NextResponse.json({ error: "Purchase required" }, { status: 403 });
-  }
+  // The quiz is free to take; payment unlocks the full scores and report.
 
   const { questionIndex, answer } = await request.json();
 
