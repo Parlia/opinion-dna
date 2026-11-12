@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requestContext } from "@/lib/scoring/finalize";
 
 export const dynamic = "force-dynamic";
 
@@ -131,12 +132,12 @@ export async function POST(request: Request) {
 
     // Trigger report generation
     try {
-      const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001";
-      const res = await fetch(`${origin}/api/report/compare`, {
+      const ctx = requestContext(request);
+      const res = await fetch(`${ctx.origin}/api/report/compare`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          cookie: request.headers.get("cookie") || "",
+          cookie: ctx.cookie,
         },
         body: JSON.stringify({ inviteId, relationshipType, selectionId: existing.id }),
       });

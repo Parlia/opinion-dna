@@ -23,11 +23,13 @@ export interface RequestContext {
 }
 
 export function requestContext(request: Request): RequestContext {
+  // The origin is where we send the user's cookie, so it must never come from
+  // a client-supplied header. In production use the configured site URL; in
+  // dev and previews use the host this request was actually served on.
+  const siteUrl =
+    process.env.NODE_ENV === "production" ? process.env.NEXT_PUBLIC_SITE_URL : undefined;
   return {
-    origin:
-      request.headers.get("origin") ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      new URL(request.url).origin,
+    origin: siteUrl ? new URL(siteUrl).origin : new URL(request.url).origin,
     cookie: request.headers.get("cookie") || "",
   };
 }
